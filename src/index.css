@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer components {
+  .action-btn {
+    @apply border-2 border-slate-200 px-3 py-4 rounded-2xl font-black text-[10px] text-slate-900 transition-all shadow-sm hover:border-blue-600 hover:text-blue-600 active:scale-95 text-center leading-none;
+  }
+}
