@@ -17,10 +17,10 @@ export const Navbar = () => {
   };
 
   return (
-    <nav className="bg-slate-900 text-white p-4 shadow-lg sticky top-0 z-50">
+    <nav className="bg-[#065e20] text-white p-4 shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto flex justify-between items-center">
         <Link to="/" className="flex items-center gap-2 group">
-          <div className="bg-blue-600 p-1.5 rounded-md group-hover:bg-blue-500 transition-colors">
+          <div className="bg-[#06bb45] p-1.5 rounded-md group-hover:bg-blue-500 transition-colors">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
