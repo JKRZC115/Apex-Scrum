@@ -1,20 +1,32 @@
 import React from 'react';
-import { MOCK_MATCHES, MOCK_CLUBS } from '../../core/mocks/mockData';
+import { MOCK_MATCHES, MOCK_CLUBS, MOCK_STANDINGS } from '../../core/mocks/mockData';
 import { MatchStatus, MatchModality } from '../../types';
 import { Link } from 'react-router-dom';
+import { StandingsTable } from '../../components/StandingsTable';
 
 const PublicDashboard = () => (
-  <div className="space-y-10">
+  <div className="space-y-12">
     <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
       <div>
         <h1 className="text-4xl font-black text-slate-900 tracking-tight italic uppercase">Cartelera de Torneos</h1>
         <p className="text-slate-500 mt-2 font-medium">Resultados en vivo y estadísticas de Rugby XV's y 7's</p>
       </div>
       <div className="flex gap-2">
-        <button className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-bold shadow-sm hover:bg-slate-50 transition-colors">Masculino</button>
-        <button className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-bold shadow-sm hover:bg-slate-50 transition-colors">Femenino</button>
+        <button className="bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl text-sm font-black shadow-sm hover:bg-slate-50 transition-colors uppercase italic tracking-tighter">Rugby XV's</button>
+        <button className="bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl text-sm font-black shadow-sm hover:bg-slate-50 transition-colors uppercase italic tracking-tighter">Rugby 7's</button>
       </div>
     </header>
+
+    <section className="space-y-8">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-black text-slate-900 italic uppercase tracking-tight flex items-center gap-3">
+          <span className="w-2 h-8 bg-blue-600 rounded-full"></span>
+          Tabla General
+        </h2>
+        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Apertura 2024 • Primera División</span>
+      </div>
+      <StandingsTable standings={MOCK_STANDINGS} />
+    </section>
 
     <section className="space-y-6">
       <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
@@ -32,17 +44,20 @@ const PublicDashboard = () => (
             <div key={match.id} className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden hover:shadow-xl transition-all group active:scale-[0.99]">
               <div className="p-8">
                 <div className="flex justify-between items-center mb-8">
-                   <div className="flex items-center gap-3">
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${match.modality === MatchModality.XVS ? 'bg-orange-100 text-orange-700 border border-orange-200' : 'bg-purple-100 text-purple-700 border border-purple-200'}`}>
-                      Rugby {match.modality === MatchModality.XVS ? "XV's" : "7's"}
-                    </span>
-                    {isLive && (
-                      <span className="flex items-center gap-1.5 text-red-600 text-[10px] font-black animate-pulse bg-red-50 px-3 py-1 rounded-full border border-red-100">
-                        <span className="w-2 h-2 bg-red-600 rounded-full"></span>
-                        EN VIVO • {match.currentMinute}'
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${match.modality === MatchModality.XVS ? 'bg-orange-100 text-orange-700 border border-orange-200' : 'bg-purple-100 text-purple-700 border border-purple-200'}`}>
+                        Rugby {match.modality === MatchModality.XVS ? "XV's" : "7's"}
                       </span>
-                    )}
-                   </div>
+                      <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-slate-200">
+                        Masculino • Primera
+                      </span>
+                      {isLive && (
+                        <span className="flex items-center gap-1.5 text-red-600 text-[10px] font-black animate-pulse bg-red-50 px-3 py-1 rounded-full border border-red-100">
+                          <span className="w-2 h-2 bg-red-600 rounded-full"></span>
+                          EN VIVO • {match.currentMinute}'
+                        </span>
+                      )}
+                    </div>
                    <span className="text-xs text-slate-400 font-bold bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
                      {new Date(match.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                    </span>
@@ -51,9 +66,9 @@ const PublicDashboard = () => (
                 <div className="grid grid-cols-3 items-center text-center gap-4">
                   <div className="space-y-4">
                     <div className="w-20 h-20 bg-slate-50 rounded-[28px] mx-auto flex items-center justify-center border-2 border-slate-100 shadow-inner group-hover:border-blue-100 transition-colors">
-                      <span className="text-3xl font-black text-slate-300 group-hover:text-blue-300">{homeClub.name[0]}</span>
+                      <span className="text-3xl font-black text-slate-300 group-hover:text-blue-300">{homeClub?.name?.[0] || '?'}</span>
                     </div>
-                    <p className="text-xs font-black text-slate-900 uppercase leading-tight tracking-tight">{homeClub.name}</p>
+                    <p className="text-xs font-black text-slate-900 uppercase leading-tight tracking-tight">{homeClub?.name || '???'}</p>
                   </div>
 
                   <div>
@@ -71,9 +86,9 @@ const PublicDashboard = () => (
 
                   <div className="space-y-4">
                     <div className="w-20 h-20 bg-slate-50 rounded-[28px] mx-auto flex items-center justify-center border-2 border-slate-100 shadow-inner group-hover:border-blue-100 transition-colors">
-                      <span className="text-3xl font-black text-slate-300 group-hover:text-blue-300">{awayClub.name[0]}</span>
+                      <span className="text-3xl font-black text-slate-300 group-hover:text-blue-300">{awayClub?.name?.[0] || '?'}</span>
                     </div>
-                    <p className="text-xs font-black text-slate-900 uppercase leading-tight tracking-tight">{awayClub.name}</p>
+                    <p className="text-xs font-black text-slate-900 uppercase leading-tight tracking-tight">{awayClub?.name || '???'}</p>
                   </div>
                 </div>
 

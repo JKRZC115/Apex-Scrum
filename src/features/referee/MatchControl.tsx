@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { useMatchEngine } from '../../core/hooks/useMatchEngine';
 import { MOCK_MATCHES, MOCK_CLUBS, MOCK_PLAYERS } from '../../core/mocks/mockData';
-import { MatchEventType, MatchStatus, MatchEvent } from '../../types';
+import { MatchEventType, MatchStatus, MatchEvent, UserRole } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { Navigate } from 'react-router-dom';
 
 const MatchControl = () => {
   const { user } = useAuth();
   const liveMatch = MOCK_MATCHES.find(m => m.status === MatchStatus.LIVE) || MOCK_MATCHES[0];
-  const { match, events, isRunning, setIsRunning, addEvent, removeEvent, toggleRosterLock } = useMatchEngine(liveMatch);
+  const { match, events, isRunning, setIsRunning, addEvent, removeEvent, toggleRosterLock, getActiveYellowCards } = useMatchEngine(liveMatch);
+
+  const activeYellowCards = getActiveYellowCards();
 
   const [pendingEvent, setPendingEvent] = useState<{ type: MatchEventType, teamId: 'HOME' | 'AWAY' } | null>(null);
   const [isSubmittingSub, setIsSubmittingSub] = useState(false);
@@ -17,7 +19,7 @@ const MatchControl = () => {
   const homeClub = MOCK_CLUBS[match.homeTeamId];
   const awayClub = MOCK_CLUBS[match.awayTeamId];
 
-  if (!user || (user.role !== 'REFEREE' && user.role !== 'ADMIN')) {
+  if (!user || (!user.roles.includes(UserRole.REFEREE) && !user.roles.includes(UserRole.ADMIN))) {
     return <Navigate to="/login" />;
   }
 
@@ -58,7 +60,7 @@ const MatchControl = () => {
             <div className="bg-slate-900 p-8 text-white">
               <h3 className="text-2xl font-black italic uppercase tracking-tighter">Seleccionar Jugador</h3>
               <p className="text-xs font-bold text-slate-400 mt-2 uppercase tracking-widest">
-                {pendingEvent.type.replace('_', ' ')} • {pendingEvent.teamId === 'HOME' ? homeClub.name : awayClub.name}
+                {pendingEvent.type.replace('_', ' ')} • {pendingEvent.teamId === 'HOME' ? (homeClub?.name || 'Local') : (awayClub?.name || 'Visitante')}
               </p>
             </div>
             <div className="p-8 max-h-[60vh] overflow-y-auto space-y-2">
@@ -72,7 +74,7 @@ const MatchControl = () => {
                     <span className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-xs font-black text-white group-hover:bg-blue-600">
                       {p.number}
                     </span>
-                    <span className="font-black text-slate-900 uppercase text-sm tracking-tight">{p.name}</span>
+                    <span className="font-black text-slate-900 uppercase text-sm tracking-tight">{p.firstName} {p.lastName}</span>
                   </div>
                   <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
@@ -101,18 +103,18 @@ const MatchControl = () => {
                   onClick={() => setSubData({ ...subData, teamId: 'HOME', in: undefined, out: undefined })}
                   className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${subData.teamId === 'HOME' ? 'bg-white text-blue-600 shadow-lg' : 'text-blue-200'}`}
                  >
-                   {homeClub.name}
+                   {homeClub?.name || 'Local'}
                  </button>
                  <button 
                   onClick={() => setSubData({ ...subData, teamId: 'AWAY', in: undefined, out: undefined })}
                   className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${subData.teamId === 'AWAY' ? 'bg-white text-blue-600 shadow-lg' : 'text-blue-200'}`}
                  >
-                   {awayClub.name}
+                   {awayClub?.name || 'Visitante'}
                  </button>
               </div>
             </div>
             <div className="p-8 space-y-6">
-               <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sale (Player Out)</label>
                     <select 
@@ -121,7 +123,7 @@ const MatchControl = () => {
                       onChange={e => setSubData({ ...subData, out: e.target.value })}
                     >
                       <option value="">Seleccionar...</option>
-                      {getTeamPlayers(subData.teamId).map(p => <option key={p.id} value={p.id}>#{p.number} {p.name}</option>)}
+                      {getTeamPlayers(subData.teamId).map(p => <option key={p.id} value={p.id}>#{p.number} {p.firstName} {p.lastName}</option>)}
                     </select>
                   </div>
                   <div className="space-y-3">
@@ -132,7 +134,7 @@ const MatchControl = () => {
                       onChange={e => setSubData({ ...subData, in: e.target.value })}
                     >
                       <option value="">Seleccionar...</option>
-                      {getTeamPlayers(subData.teamId).map(p => <option key={p.id} value={p.id}>#{p.number} {p.name}</option>)}
+                      {getTeamPlayers(subData.teamId).map(p => <option key={p.id} value={p.id}>#{p.number} {p.firstName} {p.lastName}</option>)}
                     </select>
                   </div>
                </div>
@@ -159,18 +161,26 @@ const MatchControl = () => {
           <h1 className="text-4xl font-black text-slate-900 italic uppercase leading-none tracking-tighter">Control de Mesa</h1>
           <p className="text-slate-500 text-xs font-black mt-2 uppercase tracking-widest">Operador: <span className="text-blue-600">{user.name}</span> • <span className="text-slate-400">{match.id}</span></p>
          </div>
-         <div className="flex gap-4">
-            <button 
-              onClick={() => toggleRosterLock()}
-              className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border-2 ${match.isRosterManuallyUnlocked ? 'bg-green-50 border-green-200 text-green-600' : 'bg-white border-slate-200 text-slate-600'}`}
-            >
-              {match.isRosterManuallyUnlocked ? 'Planilla Habilitada (Coach)' : 'Habilitar Planilla'}
-            </button>
+         <div className="flex gap-2">
+            <div className="flex flex-col gap-2">
+               <button 
+                 onClick={() => toggleRosterLock('HOME')}
+                 className={`px-6 py-2.5 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all border-2 ${match.isHomeRosterUnlocked ? 'bg-green-50 border-green-200 text-green-600' : 'bg-white border-slate-200 text-slate-600'}`}
+               >
+                 {match.isHomeRosterUnlocked ? `${homeClub?.name?.substring(0,6) || 'Local'} OK` : `Habilitar ${homeClub?.name?.substring(0,6) || 'Local'}`}
+               </button>
+               <button 
+                 onClick={() => toggleRosterLock('AWAY')}
+                 className={`px-6 py-2.5 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all border-2 ${match.isAwayRosterUnlocked ? 'bg-green-50 border-green-200 text-green-600' : 'bg-white border-slate-200 text-slate-600'}`}
+               >
+                 {match.isAwayRosterUnlocked ? `${awayClub?.name?.substring(0,6) || 'Visit'} OK` : `Habilitar ${awayClub?.name?.substring(0,6) || 'Visit'}`}
+               </button>
+            </div>
             <button 
               onClick={() => setIsSubmittingSub(true)}
-              className="bg-white border-2 border-slate-200 px-6 py-3 rounded-2xl font-black text-[10px] text-slate-600 uppercase tracking-widest hover:border-blue-600 hover:text-blue-600 transition-all"
+              className="bg-white border-2 border-slate-200 px-4 rounded-xl font-black text-[9px] text-slate-600 uppercase tracking-widest hover:border-blue-600 hover:text-blue-600 transition-all"
             >
-              Gestionar Cambios
+              Cambios
             </button>
             <div className="bg-slate-900 p-4 rounded-[24px] flex items-center gap-8 shadow-2xl border border-slate-700 overflow-hidden">
                 <div className="text-center px-2">
@@ -198,9 +208,9 @@ const MatchControl = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 items-center gap-8 relative z-10">
           <div className="text-center space-y-6">
             <div className="w-24 h-24 bg-slate-50 rounded-[32px] mx-auto flex items-center justify-center border-4 border-white shadow-xl">
-               <span className="text-4xl font-black text-slate-200">{homeClub.name[0]}</span>
+               <span className="text-4xl font-black text-slate-200">{homeClub?.name?.[0] || '?'}</span>
             </div>
-            <h2 className="text-lg font-black text-slate-900 leading-tight uppercase tracking-tight max-w-[150px] mx-auto">{homeClub.name}</h2>
+            <h2 className="text-lg font-black text-slate-900 leading-tight uppercase tracking-tight max-w-[150px] mx-auto">{homeClub?.name || 'Local'}</h2>
           </div>
 
           <div className="text-center bg-slate-50 py-10 rounded-[40px] border border-slate-100 shadow-inner">
@@ -218,12 +228,41 @@ const MatchControl = () => {
 
           <div className="text-center space-y-6">
             <div className="w-24 h-24 bg-slate-50 rounded-[32px] mx-auto flex items-center justify-center border-4 border-white shadow-xl">
-               <span className="text-4xl font-black text-slate-200">{awayClub.name[0]}</span>
+               <span className="text-4xl font-black text-slate-200">{awayClub?.name?.[0] || '?'}</span>
             </div>
-            <h2 className="text-lg font-black text-slate-900 leading-tight uppercase tracking-tight max-w-[150px] mx-auto">{awayClub.name}</h2>
+            <h2 className="text-lg font-black text-slate-900 leading-tight uppercase tracking-tight max-w-[150px] mx-auto">{awayClub?.name || 'Visitante'}</h2>
           </div>
         </div>
       </div>
+
+      {/* Tarjetas Amarillas Activas (Timers) */}
+      {activeYellowCards.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-in slide-in-from-top-4 duration-300">
+          {activeYellowCards.map(yc => {
+            const player = MOCK_PLAYERS.find(p => p.id === yc.playerId);
+            const isHome = yc.teamId === match.homeTeamId;
+            return (
+              <div key={yc.id} className="bg-yellow-400 p-4 rounded-3xl shadow-lg flex items-center justify-between border-b-4 border-yellow-600">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-black/10 rounded-xl flex items-center justify-center font-black text-xs">
+                    #{player?.number}
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase leading-none">{player?.firstName}</p>
+                    <p className="text-[8px] font-bold uppercase tracking-widest opacity-60 mt-1 truncate max-w-[80px]">
+                      {isHome ? (homeClub?.name || 'Local') : (awayClub?.name || 'Visitante')}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-center bg-black/20 px-3 py-1.5 rounded-2xl">
+                   <p className="text-[8px] font-black uppercase opacity-60">Regresa</p>
+                   <p className="text-xl font-black tabular-nums">{yc.remaining}'</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Panel de Control Táctico */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -296,14 +335,14 @@ const MatchControl = () => {
                            {event.points > 0 && <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">+{event.points}</span>}
                         </div>
                         <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">
-                          {MOCK_CLUBS[event.teamId].name} 
+                          {MOCK_CLUBS[event.teamId]?.name || 'Equipo'} 
                           {event.type === MatchEventType.SUBSTITUTION ? (
                             <>
-                              • OUT: {MOCK_PLAYERS.find(p => p.id === event.playerOutId)?.name} 
-                              / IN: {MOCK_PLAYERS.find(p => p.id === event.playerId)?.name}
+                              • OUT: {MOCK_PLAYERS.find(p => p.id === event.playerOutId)?.firstName} {MOCK_PLAYERS.find(p => p.id === event.playerOutId)?.lastName} 
+                              / IN: {MOCK_PLAYERS.find(p => p.id === event.playerId)?.firstName} {MOCK_PLAYERS.find(p => p.id === event.playerId)?.lastName}
                             </>
                           ) : (
-                            player ? ` • #${player.number} ${player.name}` : ''
+                            player ? ` • #${player.number} ${player.firstName} ${player.lastName}` : ''
                           )}
                         </p>
                       </div>

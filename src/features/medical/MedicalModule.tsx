@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { MOCK_PLAYERS, MOCK_CLUBS } from '../../core/mocks/mockData';
-import { Player } from '../../types';
+import { Player, UserRole } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { Navigate } from 'react-router-dom';
 
@@ -22,12 +22,12 @@ export const MedicalModule = () => {
   });
   const [success, setSuccess] = useState(false);
 
-  if (!user || (user.role !== 'MEDICAL' && user.role !== 'ADMIN')) {
+  if (!user || (!user.roles.includes(UserRole.MEDICAL) && !user.roles.includes(UserRole.ADMIN))) {
     return <Navigate to="/login" />;
   }
 
   const players = MOCK_PLAYERS.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    `${p.firstName} ${p.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || 
     p.idCard.includes(searchTerm)
   );
 
@@ -69,11 +69,11 @@ export const MedicalModule = () => {
               >
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-xs font-black text-white">
-                    {p.name[0]}
+                    {p.firstName[0]}
                   </div>
                   <div>
-                    <p className="font-black text-slate-900 text-sm">{p.name}</p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{MOCK_CLUBS[p.clubId].name}</p>
+                    <p className="font-black text-slate-900 text-sm">{p.firstName} {p.lastName}</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{MOCK_CLUBS[p.clubId]?.name || 'Club no definido'}</p>
                   </div>
                 </div>
                 <span className="text-[10px] font-black text-blue-600 uppercase italic">Seleccionar Athlete</span>
@@ -86,11 +86,11 @@ export const MedicalModule = () => {
           <div className="bg-red-600 p-8 text-white flex justify-between items-center">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-red-600 font-black">
-                {selectedPlayer.name[0]}
+                {selectedPlayer.firstName[0]}
               </div>
               <div>
-                <h3 className="font-black text-xl uppercase italic tracking-tighter">{selectedPlayer.name}</h3>
-                <p className="text-[10px] font-black uppercase tracking-[.2em] opacity-80">{MOCK_CLUBS[selectedPlayer.clubId].name}</p>
+                <h3 className="font-black text-xl uppercase italic tracking-tighter">{selectedPlayer.firstName} {selectedPlayer.lastName}</h3>
+                <p className="text-[10px] font-black uppercase tracking-[.2em] opacity-80">{MOCK_CLUBS[selectedPlayer.clubId]?.name || 'Club no definido'}</p>
               </div>
             </div>
             <button 
@@ -115,17 +115,13 @@ export const MedicalModule = () => {
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Lesión</label>
-                <select 
+                <input 
+                  required
                   className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-bold"
+                  placeholder="Ej: Esguince, Fractura, etc."
                   value={report.injuryType}
                   onChange={e => setReport({...report, injuryType: e.target.value})}
-                >
-                  <option>Seleccione tipo...</option>
-                  <option>Esguince</option>
-                  <option>Fractura</option>
-                  <option>Concusión / Golpe en cabeza</option>
-                  <option>Herida abierta</option>
-                </select>
+                />
               </div>
             </div>
 

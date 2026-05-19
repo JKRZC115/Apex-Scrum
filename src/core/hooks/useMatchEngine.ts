@@ -77,24 +77,40 @@ export const useMatchEngine = (initialMatch: Match) => {
   /**
    * Valida si el acta puede ser editada por el entrenador (15 min antes).
    */
-  const canEditRoster = useCallback(() => {
-    if (match.isRosterManuallyUnlocked) return true;
+  const canEditRoster = useCallback((teamId?: string) => {
+    if (teamId === match.homeTeamId && match.isHomeRosterUnlocked) return true;
+    if (teamId === match.awayTeamId && match.isAwayRosterUnlocked) return true;
+    
     if (!match.date) return true;
     const now = new Date();
     const startTime = new Date(match.date);
     const diffInMinutes = (startTime.getTime() - now.getTime()) / (1000 * 60);
     return diffInMinutes > 15;
-  }, [match.date, match.isRosterManuallyUnlocked]);
+  }, [match.date, match.homeTeamId, match.awayTeamId, match.isHomeRosterUnlocked, match.isAwayRosterUnlocked]);
 
   /**
    * Permite al árbitro habilitar o deshabilitar la edición del acta.
    */
-  const toggleRosterLock = useCallback(() => {
+  const toggleRosterLock = useCallback((side: 'HOME' | 'AWAY') => {
     setMatch(prev => ({
       ...prev,
-      isRosterManuallyUnlocked: !prev.isRosterManuallyUnlocked
+      [side === 'HOME' ? 'isHomeRosterUnlocked' : 'isAwayRosterUnlocked']: !prev[side === 'HOME' ? 'isHomeRosterUnlocked' : 'isAwayRosterUnlocked']
     }));
   }, []);
+
+  /**
+   * Obtiene las tarjetas amarillas activas y su tiempo restante.
+   */
+  const getActiveYellowCards = useCallback(() => {
+    return events
+      .filter(e => e.type === MatchEventType.YELLOW_CARD)
+      .map(e => {
+        const elapsed = match.currentMinute - e.minute;
+        const remaining = Math.max(0, match.yellowCardDuration - elapsed);
+        return { ...e, remaining };
+      })
+      .filter(e => e.remaining > 0);
+  }, [events, match.currentMinute, match.yellowCardDuration]);
 
   /**
    * Elimina un evento y revierte su impacto en el marcador.
@@ -124,6 +140,7 @@ export const useMatchEngine = (initialMatch: Match) => {
     removeEvent,
     toggleRosterLock,
     getYellowCardDuration,
+    getActiveYellowCards,
     canEditRoster
   };
 };

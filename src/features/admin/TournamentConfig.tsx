@@ -40,7 +40,8 @@ export const TournamentConfig = () => {
       homeRosterIds: [],
       awayRosterIds: [],
       venue: formData.venue,
-      halfDuration: formData.halfDuration
+      halfDuration: formData.halfDuration,
+      yellowCardDuration: formData.modality === MatchModality.XVS ? 10 : 2
     };
 
     MOCK_MATCHES.push(newMatch);

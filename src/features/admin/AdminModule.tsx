@@ -6,20 +6,36 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { MOCK_USERS, MOCK_MATCHES } from '../../core/mocks/mockData';
-import { UserRole } from '../../types';
+import { UserRole, Player } from '../../types';
 import { Navigate, Link } from 'react-router-dom';
+import { MOCK_PLAYERS as INITIAL_PLAYERS, MOCK_CLUBS } from '../../core/mocks/mockData';
 
 export const AdminModule = () => {
   const { user } = useAuth();
-  const [usersBoard, setUsersBoard] = useState(Object.values(MOCK_USERS));
+  const [usersBoard, setUsersBoard] = useState<any[]>(Object.values(MOCK_USERS));
+  const [players, setPlayers] = useState<any[]>(INITIAL_PLAYERS);
 
-  if (!user || user.role !== 'ADMIN') {
+  if (!user || (!user.roles.includes(UserRole.ADMIN))) {
     return <Navigate to="/login" />;
   }
 
-  const toggleApproval = (userId: string) => {
-    setUsersBoard(prev => prev.map(u => 
-      u.id === userId ? { ...u, isApproved: !u.isApproved } : u
+  const approveRoles = (userId: string) => {
+    setUsersBoard(prev => prev.map(u => {
+      if (u.id === userId && u.pendingRoles) {
+        return {
+          ...u,
+          roles: Array.from(new Set([...u.roles, ...u.pendingRoles])),
+          pendingRoles: null,
+          isApproved: true
+        };
+      }
+      return u;
+    }));
+  };
+
+  const handleSuspension = (playerId: string, matches: number) => {
+    setPlayers(prev => prev.map(p => 
+      p.id === playerId ? { ...p, isSuspended: matches > 0, suspendedMatchesLeft: matches } : p
     ));
   };
 
@@ -47,8 +63,8 @@ export const AdminModule = () => {
 
       <section className="space-y-6">
         <h2 className="text-xl font-black text-slate-800 uppercase italic flex items-center gap-2">
-          <span className="w-2 h-6 bg-slate-900 rounded-full"></span>
-          Aprobación de Personal
+          <span className="w-2 h-6 bg-orange-500 rounded-full"></span>
+          Solicitudes de Rol Pendientes
         </h2>
         
         <div className="bg-white rounded-[40px] border border-slate-200 shadow-sm overflow-hidden">
@@ -56,13 +72,12 @@ export const AdminModule = () => {
             <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
               <tr>
                 <th className="px-8 py-4">Usuario</th>
-                <th className="px-8 py-4">Rol</th>
-                <th className="px-8 py-4">Estado</th>
+                <th className="px-8 py-4">Roles Solicitados</th>
                 <th className="px-8 py-4 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {usersBoard.map(u => (
+              {usersBoard.filter(u => u.pendingRoles).map(u => (
                 <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-8 py-6">
                     <div>
@@ -71,22 +86,87 @@ export const AdminModule = () => {
                     </div>
                   </td>
                   <td className="px-8 py-6">
-                    <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100 uppercase tracking-widest">
-                      {u.role}
-                    </span>
-                  </td>
-                  <td className="px-8 py-6">
-                    <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${u.isApproved ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
-                      {u.isApproved ? 'Aprobado' : 'Pendiente'}
-                    </span>
+                    <div className="flex gap-2">
+                      {u.pendingRoles.map((r: string) => (
+                        <span key={r} className="text-[10px] font-black text-orange-600 bg-orange-50 px-3 py-1 rounded-full border border-orange-100 uppercase tracking-widest">
+                          {r}
+                        </span>
+                      ))}
+                    </div>
                   </td>
                   <td className="px-8 py-6 text-right">
                     <button 
-                      onClick={() => toggleApproval(u.id)}
-                      className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all ${u.isApproved ? 'bg-red-50 text-red-600 hover:bg-red-600 hover:text-white' : 'bg-green-600 text-white hover:bg-green-700'}`}
+                      onClick={() => approveRoles(u.id)}
+                      className="bg-green-600 text-white text-[10px] font-black uppercase tracking-widest px-6 py-3 rounded-xl hover:bg-green-700 transition-all shadow-lg shadow-green-100"
                     >
-                      {u.isApproved ? 'Revocar' : 'Aprobar'}
+                      Aprobar Solicitud
                     </button>
+                  </td>
+                </tr>
+              ))}
+              {usersBoard.filter(u => u.pendingRoles).length === 0 && (
+                <tr>
+                  <td colSpan={3} className="px-8 py-10 text-center text-slate-400 italic text-sm">
+                    No hay solicitudes pendientes.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="space-y-6">
+        <h2 className="text-xl font-black text-slate-800 uppercase italic flex items-center gap-2">
+          <span className="w-2 h-6 bg-red-600 rounded-full"></span>
+          Control de Disciplina (Sanciones)
+        </h2>
+        
+        <div className="bg-white rounded-[40px] border border-slate-200 shadow-sm overflow-hidden">
+          <table className="w-full text-left">
+            <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              <tr>
+                <th className="px-8 py-4">Jugador</th>
+                <th className="px-8 py-4 text-center">Estado</th>
+                <th className="px-8 py-4 text-right">Definir Sanción (Partidos)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {players.map(p => (
+                <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="px-8 py-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-[10px] font-black text-white italic">
+                        {p.number}
+                      </div>
+                      <div>
+                        <p className="font-black text-slate-900 uppercase text-sm tracking-tight">{p.firstName} {p.lastName}</p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{MOCK_CLUBS[p.clubId]?.name || 'Club Desconocido'}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-8 py-6 text-center">
+                    {p.isSuspended ? (
+                      <div className="flex flex-col items-center">
+                        <span className="text-[10px] font-black text-red-600 bg-red-50 px-3 py-1 rounded-full border border-red-100 uppercase tracking-widest">Sancionado</span>
+                        <p className="text-[10px] font-bold text-red-400 mt-1 uppercase tracking-tighter">Resta: {p.suspendedMatchesLeft} fechas</p>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] font-black text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-100 uppercase tracking-widest">Habilitado</span>
+                    )}
+                  </td>
+                  <td className="px-8 py-6 text-right">
+                    <div className="flex gap-2 justify-end">
+                      {[0, 1, 2, 4, 8].map(m => (
+                        <button 
+                          key={m}
+                          onClick={() => handleSuspension(p.id, m)}
+                          className={`text-[10px] font-black px-3 py-2 rounded-lg transition-all ${p.suspendedMatchesLeft === m && p.isSuspended ? 'bg-red-600 text-white' : m === 0 && !p.isSuspended ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                        >
+                          {m === 0 ? 'ALTA' : m}
+                        </button>
+                      ))}
+                    </div>
                   </td>
                 </tr>
               ))}

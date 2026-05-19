@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { MOCK_MATCHES, MOCK_CLUBS, MOCK_PLAYERS as INITIAL_PLAYERS } from '../../core/mocks/mockData';
-import { MatchStatus, MatchModality, Player } from '../../types';
+import { MatchStatus, MatchModality, Player, UserRole } from '../../types';
 import { Navigate } from 'react-router-dom';
 
 import { useMatchEngine } from '../../core/hooks/useMatchEngine';
@@ -19,9 +19,10 @@ export const CoachModule = () => {
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [players, setPlayers] = useState<Player[]>(INITIAL_PLAYERS.filter(p => p.clubId === user?.clubId));
   const [showAddPlayer, setShowAddPlayer] = useState(false);
-  const [newPlayer, setNewPlayer] = useState({ name: '', number: '', idCard: '' });
+  const [newPlayer, setNewPlayer] = useState({ firstName: '', lastName: '', number: '', idCard: '' });
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const isLocked = !canEditRoster();
+  const isLocked = !canEditRoster(user?.clubId);
 
   useEffect(() => {
     const calculateTime = () => {
@@ -42,7 +43,7 @@ export const CoachModule = () => {
     return () => clearInterval(interval);
   }, [match]);
 
-  if (!user || user.role !== 'COACH') {
+  if (!user || (!user.roles.includes(UserRole.COACH) && !user.roles.includes(UserRole.ADMIN))) {
     return <Navigate to="/login" />;
   }
 
@@ -54,18 +55,27 @@ export const CoachModule = () => {
 
   const handleAddPlayer = (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage('');
+
+    const num = parseInt(newPlayer.number);
+    if (players.some(p => p.number === num)) {
+      setErrorMessage(`El número ${num} ya está asignado en tu equipo.`);
+      return;
+    }
+
     const player: Player = {
       id: Math.random().toString(36).substr(2, 9),
       clubId: user.clubId!,
-      name: newPlayer.name,
-      number: parseInt(newPlayer.number),
+      firstName: newPlayer.firstName,
+      lastName: newPlayer.lastName,
+      number: num,
       idCard: newPlayer.idCard,
       isMedicalBlocked: false,
       isSuspended: false
     };
     setPlayers([...players, player]);
     setShowAddPlayer(false);
-    setNewPlayer({ name: '', number: '', idCard: '' });
+    setNewPlayer({ firstName: '', lastName: '', number: '', idCard: '' });
   };
 
   return (
@@ -80,16 +90,29 @@ export const CoachModule = () => {
              </div>
              <form onSubmit={handleAddPlayer} className="p-8 space-y-6">
                 <div className="space-y-4">
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nombre Completo</label>
-                      <input 
-                        required
-                        type="text" 
-                        value={newPlayer.name}
-                        onChange={e => setNewPlayer({ ...newPlayer, name: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:border-blue-600 transition-all"
-                        placeholder="Ej: Juan Pérez"
-                      />
+                   <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nombre(s)</label>
+                         <input 
+                           required
+                           type="text" 
+                           value={newPlayer.firstName}
+                           onChange={e => setNewPlayer({ ...newPlayer, firstName: e.target.value })}
+                           className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:border-blue-600 transition-all"
+                           placeholder="Ej: Juan"
+                         />
+                      </div>
+                      <div className="space-y-2">
+                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Apellidos</label>
+                         <input 
+                           required
+                           type="text" 
+                           value={newPlayer.lastName}
+                           onChange={e => setNewPlayer({ ...newPlayer, lastName: e.target.value })}
+                           className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:border-blue-600 transition-all"
+                           placeholder="Ej: Pérez"
+                         />
+                      </div>
                    </div>
                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -116,6 +139,7 @@ export const CoachModule = () => {
                       </div>
                    </div>
                 </div>
+                {errorMessage && <p className="text-red-500 text-[10px] font-black uppercase tracking-tight text-center">{errorMessage}</p>}
                 <div className="flex gap-4">
                    <button 
                     type="button"
@@ -139,7 +163,7 @@ export const CoachModule = () => {
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-4xl font-black text-slate-900 italic uppercase tracking-tighter">Gestión de Plantilla</h1>
-          <p className="text-slate-500 font-medium">Club: <span className="text-blue-600">{MOCK_CLUBS[user.clubId || ''].name}</span></p>
+          <p className="text-slate-500 font-medium">Club: <span className="text-blue-600">{MOCK_CLUBS[user.clubId || '']?.name || 'Invitado'}</span></p>
         </div>
         
         <div className="flex gap-4">
@@ -189,7 +213,7 @@ export const CoachModule = () => {
                       </div>
                       <div>
                         <div className="flex items-center gap-3">
-                          <p className="font-black text-slate-900 uppercase text-base tracking-tight">{p.name}</p>
+                          <p className="font-black text-slate-900 uppercase text-base tracking-tight">{p.firstName} {p.lastName}</p>
                           {p.isMedicalBlocked && <span className="text-[8px] bg-red-600 text-white px-2 py-0.5 rounded-full font-black uppercase">Blocked</span>}
                         </div>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">ID: {p.idCard}</p>
@@ -247,10 +271,10 @@ export const CoachModule = () => {
              <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Información Club</h4>
              <div className="flex items-center gap-4 bg-slate-50 p-6 rounded-3xl border border-slate-100">
                 <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center font-black text-slate-300 text-xl shadow-sm border border-slate-100">
-                   {MOCK_CLUBS[user.clubId || ''].name[0]}
+                   {MOCK_CLUBS[user.clubId || '']?.name?.[0] || '?'}
                 </div>
                 <div>
-                   <p className="font-black text-slate-900 uppercase text-xs tracking-tight">{MOCK_CLUBS[user.clubId || ''].name}</p>
+                   <p className="font-black text-slate-900 uppercase text-xs tracking-tight">{MOCK_CLUBS[user.clubId || '']?.name || 'Club no definido'}</p>
                    <p className="text-[10px] font-bold text-blue-600 uppercase mt-1">Afiliado Union</p>
                 </div>
              </div>

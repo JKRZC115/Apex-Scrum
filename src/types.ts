@@ -54,9 +54,10 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: UserRole;
+  roles: UserRole[];   // Ahora soporta múltiples roles
   isApproved: boolean; // Controlado por el Admin
   clubId?: string;     // Obligatorio para COACH y MEDICAL
+  pendingRoles?: UserRole[]; // Roles solicitados pendientes de aprobación
 }
 
 /**
@@ -74,13 +75,32 @@ export interface Club {
 export interface Player {
   id: string;
   clubId: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   number: number;
   idCard: string;
   photoUrl?: string;
   isMedicalBlocked: boolean;
   isSuspended: boolean;
-  suspensionEnd?: Date; // Para tarjetas amarillas o sanciones
+  suspensionEnd?: Date; // Para tarjetas amarillas o sanciones temporales
+  suspendedMatchesLeft?: number; // Contador de partidos de sanción (para Rojas)
+}
+
+/**
+ * Tabla de posiciones / Estadísticas
+ */
+export interface Standing {
+  clubId: string;
+  played: number;    // PJ
+  won: number;       // PG
+  drawn: number;     // PE
+  lost: number;      // PP
+  pointsFor: number; // PA
+  pointsAgainst: number; // PR
+  pointsDiff: number;    // DP
+  yellowCards: number;   // TA
+  redCards: number;      // TR
+  totalPoints: number;   // Puntos en la tabla
 }
 
 /**
@@ -115,9 +135,11 @@ export interface Match {
   awayRosterIds: string[];
   refereeCenterId?: string; // Árbitro central asignado
   refereeTableId?: string;  // Árbitro de mesa (operador)
-  isRosterManuallyUnlocked?: boolean; // Permite al entrenador editar después del límite
+  isHomeRosterUnlocked?: boolean; // Permite al entrenador local editar después del límite
+  isAwayRosterUnlocked?: boolean; // Permite al entrenador visitante editar después del límite
   venue?: string;
   halfDuration: number; // Duración de cada tiempo en minutos (ej: 40 para XV's estándar)
+  yellowCardDuration: number; // Duración de la tarjeta amarilla en minutos (ej: 10 o 2)
 }
 
 /**

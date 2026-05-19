@@ -5,12 +5,12 @@
 
 import { User, UserRole, Club, Match, MatchModality, MatchStatus, Player } from '../../types';
 
-export const MOCK_USERS: Record<string, User & { password: string }> = {
+export const MOCK_USERS: Record<string, any> = {
   'admin@apex.com': {
     id: 'u1',
     email: 'admin@apex.com',
     name: 'Admin Supremo',
-    role: UserRole.ADMIN,
+    roles: [UserRole.ADMIN],
     isApproved: true,
     password: 'admin123'
   },
@@ -18,7 +18,7 @@ export const MOCK_USERS: Record<string, User & { password: string }> = {
     id: 'u2',
     email: 'referee@apex.com',
     name: 'Juan Referí',
-    role: UserRole.REFEREE,
+    roles: [UserRole.REFEREE],
     isApproved: true,
     password: 'referee123'
   },
@@ -26,7 +26,7 @@ export const MOCK_USERS: Record<string, User & { password: string }> = {
     id: 'u3',
     email: 'coach@club-a.com',
     name: 'Entrenador A',
-    role: UserRole.COACH,
+    roles: [UserRole.COACH],
     isApproved: true,
     clubId: 'c1',
     password: 'coach123'
@@ -35,7 +35,7 @@ export const MOCK_USERS: Record<string, User & { password: string }> = {
     id: 'u4',
     email: 'medical@apex.com',
     name: 'Dr. Rugby',
-    role: UserRole.MEDICAL,
+    roles: [UserRole.MEDICAL],
     isApproved: true,
     password: 'medical123'
   }
@@ -49,9 +49,9 @@ export const MOCK_CLUBS: Record<string, Club> = {
 };
 
 export const MOCK_PLAYERS: Player[] = [
-  { id: 'p1', clubId: 'c1', name: 'Carlos Pérez', number: 1, idCard: '12345', isMedicalBlocked: false, isSuspended: false },
-  { id: 'p2', clubId: 'c1', name: 'Juan Gómez', number: 10, idCard: '54321', isMedicalBlocked: false, isSuspended: false },
-  { id: 'p3', clubId: 'c2', name: 'Luis Rivas', number: 15, idCard: '67890', isMedicalBlocked: false, isSuspended: false }
+  { id: 'p1', clubId: 'c1', firstName: 'Carlos', lastName: 'Pérez', number: 1, idCard: '12345', isMedicalBlocked: false, isSuspended: false },
+  { id: 'p2', clubId: 'c1', firstName: 'Juan', lastName: 'Gómez', number: 10, idCard: '54321', isMedicalBlocked: false, isSuspended: false },
+  { id: 'p3', clubId: 'c2', firstName: 'Luis', lastName: 'Rivas', number: 15, idCard: '67890', isMedicalBlocked: false, isSuspended: false }
 ];
 
 const now = new Date();
@@ -71,7 +71,8 @@ export const MOCK_MATCHES: Match[] = [
     homeRosterIds: ['p1', 'p2'],
     awayRosterIds: ['p3'],
     refereeTableId: 'u2',
-    halfDuration: 40
+    halfDuration: 40,
+    yellowCardDuration: 10
   },
   {
     id: 'm2',
@@ -86,6 +87,49 @@ export const MOCK_MATCHES: Match[] = [
     currentMinute: 0,
     homeRosterIds: [],
     awayRosterIds: [],
-    halfDuration: 7
+    halfDuration: 7,
+    yellowCardDuration: 2
+  }
+];
+
+export const MOCK_STANDINGS: any[] = [
+  {
+    clubId: 'c1',
+    played: 5,
+    won: 4,
+    drawn: 0,
+    lost: 1,
+    pointsFor: 124,
+    pointsAgainst: 45,
+    pointsDiff: 79,
+    yellowCards: 2,
+    redCards: 0,
+    totalPoints: 17
+  },
+  {
+    clubId: 'c2',
+    played: 5,
+    won: 3,
+    drawn: 1,
+    lost: 1,
+    pointsFor: 89,
+    pointsAgainst: 67,
+    pointsDiff: 22,
+    yellowCards: 4,
+    redCards: 1,
+    totalPoints: 14
+  },
+  {
+    clubId: 'c3',
+    played: 5,
+    won: 2,
+    drawn: 0,
+    lost: 3,
+    pointsFor: 56,
+    pointsAgainst: 98,
+    pointsDiff: -42,
+    yellowCards: 1,
+    redCards: 0,
+    totalPoints: 8
   }
 ];

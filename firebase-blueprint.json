@@ -1,0 +1,95 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with roles and approval status",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "roles": { "type": "array", "items": { "type": "string" } },
+        "isApproved": { "type": "boolean" },
+        "clubId": { "type": "string" },
+        "pendingRoles": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["id", "email", "roles", "isApproved"]
+    },
+    "Club": {
+      "title": "Club",
+      "description": "Rugby club details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "logoUrl": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "Player": {
+      "title": "Player",
+      "description": "Rugby player details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "clubId": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "number": { "type": "integer" },
+        "idCard": { "type": "string" },
+        "isMedicalBlocked": { "type": "boolean" },
+        "isSuspended": { "type": "boolean" },
+        "suspensionEnd": { "type": "string", "format": "date-time" },
+        "suspendedMatchesLeft": { "type": "integer" }
+      },
+      "required": ["id", "clubId", "firstName", "lastName", "number", "idCard"]
+    },
+    "Match": {
+      "title": "Match",
+      "description": "Rugby match details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tournamentId": { "type": "string" },
+        "homeTeamId": { "type": "string" },
+        "awayTeamId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "modality": { "type": "string" },
+        "status": { "type": "string" },
+        "homeScore": { "type": "integer" },
+        "awayScore": { "type": "integer" },
+        "halfDuration": { "type": "integer" },
+        "venue": { "type": "string" },
+        "homeRosterIds": { "type": "array", "items": { "type": "string" } },
+        "awayRosterIds": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["id", "tournamentId", "homeTeamId", "awayTeamId", "date", "status"]
+    },
+    "Standing": {
+      "title": "Standing",
+      "description": "Team standings in a tournament",
+      "type": "object",
+      "properties": {
+        "clubId": { "type": "string" },
+        "played": { "type": "integer" },
+        "won": { "type": "integer" },
+        "drawn": { "type": "integer" },
+        "lost": { "type": "integer" },
+        "pointsFor": { "type": "integer" },
+        "pointsAgainst": { "type": "integer" },
+        "pointsDiff": { "type": "integer" },
+        "yellowCards": { "type": "integer" },
+        "redCards": { "type": "integer" },
+        "totalPoints": { "type": "integer" }
+      },
+      "required": ["clubId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": "User", "description": "User profiles" },
+    "/clubs/{clubId}": { "schema": "Club", "description": "Clubs" },
+    "/players/{playerId}": { "schema": "Player", "description": "Players" },
+    "/matches/{matchId}": { "schema": "Match", "description": "Matches" },
+    "/tournaments/{tournamentId}/standings/{clubId}": { "schema": "Standing", "description": "Tournament standings" }
+  }
+}
