@@ -27,7 +27,7 @@ const MatchControl = () => {
     return () => clearInterval(timer);
   }, []);
 
-  if (!user || (!user.roles.includes(UserRole.REFEREE) && !user.roles.includes(UserRole.ADMIN))) {
+  if (!user || !user.isApproved || (!user.roles.includes(UserRole.REFEREE) && !user.roles.includes(UserRole.ADMIN))) {
     return <Navigate to="/login" />;
   }
 
@@ -45,7 +45,7 @@ const MatchControl = () => {
       <div className="space-y-8 animate-in fade-in duration-300">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b pb-6">
           <div>
-            <h1 className="text-4xl font-black text-slate-900 italic uppercase leading-none tracking-tighter">Panel de Arbitraje</h1>
+            <h1 className="text-4xl font-black text-slate-900 italic uppercase leading-none tracking-tighter">Hola, {user.name}</h1>
             <p className="text-slate-500 text-xs font-black mt-2 uppercase tracking-widest">
               Gestiona tiempos, marcas oficiales, actas de juego y designaciones del torneo
             </p>
@@ -536,6 +536,10 @@ const MesaWorkspace = ({ initialMatch, triggerGlobalSync }: MesaProps) => {
   const homeClub = MOCK_CLUBS[match.homeTeamId];
   const awayClub = MOCK_CLUBS[match.awayTeamId];
 
+  const checkIfPlayerIsExpelled = (playerId: string) => {
+    return events.some(e => e.playerId === playerId && e.type === MatchEventType.RED_CARD);
+  };
+
   // Sync state changes with the global array
   useEffect(() => {
     triggerGlobalSync(match.id, {
@@ -753,8 +757,40 @@ const MesaWorkspace = ({ initialMatch, triggerGlobalSync }: MesaProps) => {
     }
   };
 
+  const allowedSubstitutions = match.modality === 'XVS' ? 8 : 5;
+
+  const getSubstitutionsCount = (teamId: 'HOME' | 'AWAY') => {
+    const clubId = teamId === 'HOME' ? match.homeTeamId : match.awayTeamId;
+    return events.filter(e => e.type === MatchEventType.SUBSTITUTION && e.teamId === clubId).length;
+  };
+
+  const getRemainingSubs = (teamId: 'HOME' | 'AWAY') => {
+    const currentSubs = getSubstitutionsCount(teamId);
+    return Math.max(0, allowedSubstitutions - currentSubs);
+  };
+
   const confirmEvent = (playerId: string) => {
     if (pendingEvent) {
+      if (pendingEvent.type === MatchEventType.YELLOW_CARD) {
+        const previousYellows = events.filter(e => e.type === MatchEventType.YELLOW_CARD && e.playerId === playerId);
+        if (previousYellows.length >= 1) {
+          setModalPrompt({
+            title: "Segunda Amarilla 🟨 ➔ 🟥",
+            message: "Este jugador ya tiene una tarjeta amarilla. Al registrar la segunda, se convertirá automáticamente en Tarjeta Roja (Expulsión reglamentaria). ¿Confirmar expulsión?",
+            type: 'CONFIRM',
+            onConfirm: () => {
+              const yCardId = addEvent(MatchEventType.YELLOW_CARD, pendingEvent.teamId, playerId);
+              addEvent(MatchEventType.RED_CARD, pendingEvent.teamId, playerId, undefined, yCardId);
+              setPendingEvent(null);
+            },
+            onCancel: () => {
+              setPendingEvent(null);
+            }
+          });
+          return;
+        }
+      }
+
       addEvent(pendingEvent.type, pendingEvent.teamId, playerId);
       setPendingEvent(null);
     }
@@ -762,9 +798,34 @@ const MesaWorkspace = ({ initialMatch, triggerGlobalSync }: MesaProps) => {
 
   const handleSubstitution = () => {
     if (subData.in && subData.out) {
+      const remaining = getRemainingSubs(subData.teamId);
+      if (remaining <= 0) {
+        setModalPrompt({
+          title: "Sustituciones Agotadas 🚫",
+          message: `El equipo ya ha alcanzado el límite de ${allowedSubstitutions} cambios permitidos para la modalidad de ${match.modality === 'XVS' ? "XV's" : "7's"}.`,
+          type: 'ALERT'
+        });
+        return;
+      }
+
       addEvent(MatchEventType.SUBSTITUTION, subData.teamId, subData.in, subData.out);
       setIsSubmittingSub(false);
       setSubData({ teamId: 'HOME' });
+    }
+  };
+
+  const handleRemoveEventClick = (ev: MatchEvent) => {
+    if (ev.type === MatchEventType.YELLOW_CARD || ev.type === MatchEventType.RED_CARD) {
+      setModalPrompt({
+        title: "¿Eliminar Tarjeta?",
+        message: `¿Estás seguro de que deseas eliminar este registro de tarjeta (${ev.type === MatchEventType.YELLOW_CARD ? 'Amarilla 🟨' : 'Roja 🟥'})? Esto no afectará la puntuación del partido. Si eliminas una segunda amarilla, la tarjeta roja asociada también se quitará.`,
+        type: 'CONFIRM',
+        onConfirm: () => {
+          removeEvent(ev.id);
+        }
+      });
+    } else {
+      removeEvent(ev.id);
     }
   };
 
@@ -808,15 +869,32 @@ const MesaWorkspace = ({ initialMatch, triggerGlobalSync }: MesaProps) => {
               </p>
             </div>
             <div className="p-8 max-h-[60vh] overflow-y-auto space-y-2">
-              {getTeamPlayers(pendingEvent.teamId).map(p => (
-                <button 
-                  key={p.id}
-                  onClick={() => confirmEvent(p.id)}
-                  className="w-full flex items-center justify-between p-4 rounded-2xl border hover:border-blue-600 hover:bg-blue-50 text-left group"
-                >
-                  <span className="font-black text-slate-900 uppercase">{p.number} - {p.firstName} {p.lastName}</span>
-                </button>
-              ))}
+              {getTeamPlayers(pendingEvent.teamId).map(p => {
+                const isExpelled = checkIfPlayerIsExpelled(p.id);
+                return (
+                  <button 
+                    key={p.id}
+                    onClick={() => {
+                      if (!isExpelled) {
+                        confirmEvent(p.id);
+                      }
+                    }}
+                    disabled={isExpelled}
+                    className={`w-full flex items-center justify-between p-4 rounded-2xl border text-left group transition-all ${
+                      isExpelled 
+                        ? 'bg-red-50 border-red-200 opacity-60 cursor-not-allowed text-red-700' 
+                        : 'border-slate-200 bg-white hover:border-blue-600 hover:bg-blue-50 text-slate-900'
+                    }`}
+                  >
+                    <span className="font-black uppercase">{p.number} - {p.firstName} {p.lastName}</span>
+                    {isExpelled && (
+                      <span className="text-[10px] font-black uppercase text-red-650 bg-red-100 border border-red-200 px-2 py-1 rounded-lg">
+                        🟥 EXPULSADO
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
             <button onClick={() => setPendingEvent(null)} className="w-full bg-slate-100 py-6 font-black uppercase text-slate-400">
               Cancelar
@@ -845,29 +923,36 @@ const MesaWorkspace = ({ initialMatch, triggerGlobalSync }: MesaProps) => {
                    {awayClub?.name}
                  </button>
               </div>
+              <p className="text-center text-[11px] font-black uppercase tracking-wider text-blue-105 mt-4">
+                Sustituciones restantes: {getRemainingSubs(subData.teamId)} / {allowedSubstitutions}
+              </p>
             </div>
             <div className="p-8 space-y-6">
                 <div className="grid grid-cols-2 gap-6">
                   <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase">Sale (OUT)</label>
                     <select 
-                      className="w-full bg-slate-50 border rounded-xl px-4 py-3 text-xs font-bold"
+                      className="w-full bg-slate-50 border rounded-xl px-4 py-3 text-xs font-bold text-slate-900"
                       value={subData.out || ''}
                       onChange={e => setSubData({ ...subData, out: e.target.value })}
                     >
                       <option value="">Seleccionar...</option>
-                      {getTeamPlayers(subData.teamId).map(p => <option key={p.id} value={p.id}>#{p.number} {p.firstName}</option>)}
+                      {getTeamPlayers(subData.teamId)
+                        .filter(p => !checkIfPlayerIsExpelled(p.id))
+                        .map(p => <option key={p.id} value={p.id}>#{p.number} {p.firstName}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase">Entra (IN)</label>
                     <select 
-                      className="w-full bg-slate-50 border rounded-xl px-4 py-3 text-xs font-bold"
+                      className="w-full bg-slate-50 border rounded-xl px-4 py-3 text-xs font-bold text-slate-900"
                       value={subData.in || ''}
                       onChange={e => setSubData({ ...subData, in: e.target.value })}
                     >
                       <option value="">Seleccionar...</option>
-                      {getTeamPlayers(subData.teamId).map(p => <option key={p.id} value={p.id}>#{p.number} {p.firstName}</option>)}
+                      {getTeamPlayers(subData.teamId)
+                        .filter(p => !checkIfPlayerIsExpelled(p.id))
+                        .map(p => <option key={p.id} value={p.id}>#{p.number} {p.firstName}</option>)}
                     </select>
                   </div>
                </div>
@@ -1028,8 +1113,11 @@ const MesaWorkspace = ({ initialMatch, triggerGlobalSync }: MesaProps) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* HOME team controls */}
           <div className="bg-white p-10 rounded-[40px] border border-slate-200 shadow-sm space-y-8">
-            <header className="flex justify-between items-center border-b pb-6 uppercase">
-              <h3 className="text-xs font-black text-slate-400 tracking-widest">{homeClub?.name}</h3>
+            <header className="flex justify-between items-center border-b pb-6 uppercase flex-wrap gap-2">
+              <div className="space-y-1">
+                <h3 className="text-xs font-black text-slate-400 tracking-widest">{homeClub?.name}</h3>
+                <span className="block text-[9px] font-extrabold text-blue-500">Sustituciones rest: {getRemainingSubs('HOME')} / {allowedSubstitutions}</span>
+              </div>
               <span className="text-xl font-black text-blue-600">Score: {match.homeScore}</span>
             </header>
             <div className="grid grid-cols-2 gap-4">
@@ -1076,7 +1164,7 @@ const MesaWorkspace = ({ initialMatch, triggerGlobalSync }: MesaProps) => {
                           </p>
                         </div>
                         <button 
-                          onClick={() => removeEvent(ev.id)}
+                          onClick={() => handleRemoveEventClick(ev)}
                           className="px-2.5 py-1.5 bg-red-650 text-red-600 hover:text-white hover:bg-red-600 rounded-lg font-black text-[9px] uppercase tracking-wider transition-all flex items-center gap-1 shrink-0 border border-red-250 active:scale-95 cursor-pointer shadow-sm"
                         >
                           Eliminar 🗑️
@@ -1091,9 +1179,12 @@ const MesaWorkspace = ({ initialMatch, triggerGlobalSync }: MesaProps) => {
 
           {/* AWAY team controls */}
           <div className="bg-white p-10 rounded-[40px] border border-slate-200 shadow-sm space-y-8">
-            <header className="flex justify-between items-center border-b pb-6 uppercase">
+            <header className="flex justify-between items-center border-b pb-6 uppercase flex-wrap gap-2">
               <span className="text-xl font-black text-blue-600">Score: {match.awayScore}</span>
-              <h3 className="text-xs font-black text-slate-400 tracking-widest">{awayClub?.name}</h3>
+              <div className="space-y-1 text-right">
+                <h3 className="text-xs font-black text-slate-400 tracking-widest">{awayClub?.name}</h3>
+                <span className="block text-[9px] font-extrabold text-blue-500">Sustituciones rest: {getRemainingSubs('AWAY')} / {allowedSubstitutions}</span>
+              </div>
             </header>
             <div className="grid grid-cols-2 gap-4">
               <button onClick={() => handleActionClick(MatchEventType.TRY, 'AWAY')} className="action-btn">TRY <span className="block text-[8px] opacity-60">+5 Pts</span></button>
@@ -1139,7 +1230,7 @@ const MesaWorkspace = ({ initialMatch, triggerGlobalSync }: MesaProps) => {
                           </p>
                         </div>
                         <button 
-                          onClick={() => removeEvent(ev.id)}
+                          onClick={() => handleRemoveEventClick(ev)}
                           className="px-2.5 py-1.5 bg-red-650 text-red-600 hover:text-white hover:bg-red-600 rounded-lg font-black text-[9px] uppercase tracking-wider transition-all flex items-center gap-1 shrink-0 border border-red-250 active:scale-95 cursor-pointer shadow-sm"
                         >
                           Eliminar 🗑️
@@ -1266,6 +1357,7 @@ interface CentralProps {
 }
 
 const CentralWorkspace = ({ initialMatch, triggerGlobalSync }: CentralProps) => {
+  const { user } = useAuth();
   const [matchState, setMatchState] = useState<Match>(initialMatch);
   const [typedPin, setTypedPin] = useState('');
   const [pinModal, setPinModal] = useState(false);
@@ -1310,7 +1402,8 @@ const CentralWorkspace = ({ initialMatch, triggerGlobalSync }: CentralProps) => 
   };
 
   const confirmSignaturePin = () => {
-    if (typedPin.trim().length === 4) {
+    const userPin = (user as any)?.pin || '1234';
+    if (typedPin.trim() === userPin) {
       const idx = MOCK_MATCHES.findIndex(m => m.id === matchState.id);
       if (idx !== -1) {
         MOCK_MATCHES[idx] = {
@@ -1321,6 +1414,7 @@ const CentralWorkspace = ({ initialMatch, triggerGlobalSync }: CentralProps) => 
         setMatchState({ ...MOCK_MATCHES[idx] });
       }
       setPinModal(false);
+      setTypedPin('');
       setAlertPrompt({
         title: "Cierre Oficial Completado ✅",
         message: "El partido ha sido firmado digitalmente y salvado permanentemente. Las puntuaciones están congeladas con validez legal de torneo."
@@ -1328,7 +1422,7 @@ const CentralWorkspace = ({ initialMatch, triggerGlobalSync }: CentralProps) => 
     } else {
       setAlertPrompt({
         title: "PIN Inválido 🚫",
-        message: "Por favor, ingresa un código PIN de 4 dígitos válido."
+        message: "El PIN ingresado es incorrecto. Por favor, verifica el PIN en tu perfil de usuario."
       });
     }
   };
@@ -1477,7 +1571,7 @@ const CentralWorkspace = ({ initialMatch, triggerGlobalSync }: CentralProps) => 
                 maxLength={4}
                 value={typedPin}
                 onChange={e => setTypedPin(e.target.value)}
-                className="w-full text-center tracking-[1em] text-2xl font-black bg-slate-50 border rounded-2xl p-5"
+                className="w-full text-center tracking-[1em] text-2xl font-black bg-slate-50 border rounded-2xl p-5 text-slate-900"
                 placeholder="••••"
               />
               <button 

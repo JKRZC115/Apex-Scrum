@@ -22,7 +22,7 @@ export const MedicalModule = () => {
   });
   const [success, setSuccess] = useState(false);
 
-  if (!user || (!user.roles.includes(UserRole.MEDICAL) && !user.roles.includes(UserRole.ADMIN))) {
+  if (!user || !user.isApproved || (!user.roles.includes(UserRole.MEDICAL) && !user.roles.includes(UserRole.ADMIN))) {
     return <Navigate to="/login" />;
   }
 
@@ -44,7 +44,7 @@ export const MedicalModule = () => {
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
       <header>
-        <h1 className="text-4xl font-black text-slate-900 italic uppercase tracking-tighter">Reporte Médico en Cancha</h1>
+        <h1 className="text-4xl font-black text-slate-900 italic uppercase tracking-tighter">Hola, {user.name}</h1>
         <p className="text-slate-500 font-medium">Buscador de atletas y gestión de inhabilitaciones inmediatas.</p>
       </header>
 

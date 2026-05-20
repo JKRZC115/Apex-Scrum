@@ -3,15 +3,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { UserRole } from '../../../types';
+import { ProfileSettingsModal } from '../ProfileSettingsModal';
 
 export const Navbar = () => {
   const { user, logout, activeRole, setActiveRole } = useAuth();
   const navigate = useNavigate();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -64,8 +66,14 @@ export const Navbar = () => {
         <div className="flex items-center gap-4">
           {user ? (
             <div className="flex items-center gap-4">
-              <div className="text-right hidden sm:block">
-                <p className="text-[10px] font-black text-white italic uppercase tracking-tight">{user.name}</p>
+              <button 
+                onClick={() => setIsProfileOpen(true)}
+                className="text-right hidden sm:block hover:opacity-85 transition-opacity cursor-pointer group"
+                title="Configurar mis datos"
+              >
+                <p className="text-[10px] font-black text-white italic uppercase tracking-tight flex items-center gap-1 justify-end">
+                  {user.name} <span className="text-[12px] group-hover:rotate-45 transition-transform inline-block">⚙️</span>
+                </p>
                 <div className="flex gap-1 justify-end mt-0.5 items-center">
                    {activeRole && (
                      <span className="text-[7px] bg-blue-900 border border-blue-600 px-1.5 py-0.5 rounded font-black text-blue-200 uppercase tracking-wider">
@@ -73,7 +81,16 @@ export const Navbar = () => {
                      </span>
                    )}
                 </div>
-              </div>
+              </button>
+              
+              <button 
+                onClick={() => setIsProfileOpen(true)}
+                className="sm:hidden w-8 h-8 rounded-xl bg-[#064215] border border-green-900 flex items-center justify-center text-xs"
+                title="Configurar mis datos"
+              >
+                ⚙️
+              </button>
+
               <button 
                 onClick={handleLogout}
                 className="bg-[#064215] px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-900/50 hover:text-red-200 transition-all border border-green-900"
@@ -91,6 +108,7 @@ export const Navbar = () => {
           )}
         </div>
       </div>
+      <ProfileSettingsModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
     </nav>
   );
 };

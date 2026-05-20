@@ -14,6 +14,8 @@ export const AdminModule = () => {
   const { user } = useAuth();
   const [usersBoard, setUsersBoard] = useState<any[]>(Object.values(MOCK_USERS));
   const [players, setPlayers] = useState<any[]>(INITIAL_PLAYERS);
+  const [showAllUsersList, setShowAllUsersList] = useState(false);
+  const [userSearchText, setUserSearchText] = useState('');
 
   if (!user || (!user.roles.includes(UserRole.ADMIN))) {
     return <Navigate to="/login" />;
@@ -22,11 +24,53 @@ export const AdminModule = () => {
   const approveRoles = (userId: string) => {
     setUsersBoard(prev => prev.map(u => {
       if (u.id === userId && u.pendingRoles) {
+        const mergedRoles = Array.from(new Set([...u.roles, ...u.pendingRoles]));
+        if (MOCK_USERS[u.email]) {
+          MOCK_USERS[u.email].roles = mergedRoles;
+          MOCK_USERS[u.email].pendingRoles = null;
+          MOCK_USERS[u.email].isApproved = true;
+        }
         return {
           ...u,
-          roles: Array.from(new Set([...u.roles, ...u.pendingRoles])),
+          roles: mergedRoles,
           pendingRoles: null,
           isApproved: true
+        };
+      }
+      return u;
+    }));
+  };
+
+  const denyRoles = (userId: string) => {
+    setUsersBoard(prev => prev.map(u => {
+      if (u.id === userId) {
+        if (MOCK_USERS[u.email]) {
+          MOCK_USERS[u.email].pendingRoles = null;
+        }
+        return {
+          ...u,
+          pendingRoles: null
+        };
+      }
+      return u;
+    }));
+  };
+
+  const toggleUserAccess = (email: string) => {
+    if (user && email === user.email) {
+      alert("No puedes revocar tu propio acceso como administrador activo.");
+      return;
+    }
+    setUsersBoard(prev => prev.map(u => {
+      if (u.email === email) {
+        const nextApproved = !u.isApproved;
+        if (MOCK_USERS[email]) {
+          MOCK_USERS[email].isApproved = nextApproved;
+        }
+        alert(nextApproved ? `Acceso habilitado nuevamente para: ${email}` : `Acceso revocado para: ${email}`);
+        return {
+          ...u,
+          isApproved: nextApproved
         };
       }
       return u;
@@ -58,14 +102,24 @@ export const AdminModule = () => {
   return (
     <div className="space-y-10">
       <header>
-        <h1 className="text-5xl font-black text-slate-900 italic uppercase tracking-tighter leading-none">Poder Absoluto Admin</h1>
+        <h1 className="text-5xl font-black text-slate-900 italic uppercase tracking-tighter leading-none">Hola, {user?.name}</h1>
         <p className="text-slate-500 font-medium mt-2">Control total de usuarios, torneos y resultados en disputa.</p>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-blue-600 p-8 rounded-[40px] text-white shadow-xl shadow-blue-200">
-           <p className="text-[10px] font-black uppercase tracking-[.3em] opacity-60 mb-2">Total Usuarios</p>
-           <p className="text-4xl font-black italic">{usersBoard.length}</p>
+        <div 
+          onClick={() => setShowAllUsersList(!showAllUsersList)}
+          className={`p-8 rounded-[40px] text-white shadow-xl cursor-pointer transition-all active:scale-95 flex flex-col justify-between ${
+            showAllUsersList ? 'bg-blue-800 ring-4 ring-blue-300' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
+          }`}
+        >
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[.3em] opacity-80 mb-2">Total Usuarios</p>
+            <p className="text-4xl font-black italic">{usersBoard.length}</p>
+          </div>
+          <p className="text-[10px] font-black uppercase tracking-wider mt-4 text-blue-100 bg-blue-900/30 px-3 py-1.5 rounded-xl w-fit">
+            {showAllUsersList ? '✕ Ocultar Listado' : '⚙️ Administrar Accesos'}
+          </p>
         </div>
         <div className="bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm">
            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[.3em] mb-2">Partidos Activos</p>
@@ -76,6 +130,93 @@ export const AdminModule = () => {
            <p className="text-4xl font-black italic">0</p>
         </div>
       </div>
+
+      {showAllUsersList && (
+        <section className="space-y-6 bg-slate-50 border border-slate-200 p-8 rounded-[40px] animate-in fade-in duration-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-xl font-black italic uppercase tracking-tighter text-slate-900">Listado Completo de Usuarios</h3>
+              <p className="text-[10px] font-bold text-slate-450 uppercase tracking-widest mt-1">Busca, filtra y revoca el acceso de cualquier usuario registrado en la plataforma</p>
+            </div>
+            <div className="relative">
+              <input 
+                type="text" 
+                placeholder="Buscar por nombre o correo..." 
+                value={userSearchText}
+                onChange={e => setUserSearchText(e.target.value)}
+                className="bg-white border rounded-2xl px-5 py-3 text-xs font-bold outline-none focus:border-blue-600 transition-colors w-full sm:w-64"
+              />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+            <table className="w-full text-left">
+              <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                <tr>
+                  <th className="px-6 py-4">Usuario</th>
+                  <th className="px-6 py-4">Roles</th>
+                  <th className="px-6 py-4 text-center">Estado</th>
+                  <th className="px-6 py-4 text-right">Acción</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {usersBoard
+                  .filter(u => 
+                    u.name.toLowerCase().includes(userSearchText.toLowerCase()) || 
+                    u.email.toLowerCase().includes(userSearchText.toLowerCase())
+                  )
+                  .map(u => (
+                    <tr key={u.id} className="hover:bg-slate-50/50 transition-colors text-xs">
+                      <td className="px-6 py-4">
+                        <p className="font-extrabold text-slate-900 uppercase">{u.name}</p>
+                        <p className="text-[10px] font-mono text-slate-400">{u.email}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-wrap gap-1">
+                          {u.roles.map((r: string) => (
+                            <span key={r} className="text-[8px] font-black text-blue-800 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full uppercase tracking-widest">
+                              {r}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-full ${
+                          u.isApproved ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700 border border-red-150'
+                        }`}>
+                          {u.isApproved ? 'Activo' : 'Inactivo / Revocado'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button 
+                          onClick={() => toggleUserAccess(u.email)}
+                          disabled={u.email === user.email}
+                          className={`px-4 py-2 rounded-xl transition-all font-black text-[10px] uppercase tracking-wider disabled:opacity-35 ${
+                            u.isApproved 
+                              ? 'bg-red-50 text-red-650 hover:bg-red-600 hover:text-white' 
+                              : 'bg-green-50 text-green-650 hover:bg-green-600 hover:text-white border border-green-200'
+                          }`}
+                        >
+                          {u.isApproved ? 'Revocar Acceso' : 'Permitir Acceso'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                {usersBoard.filter(u => 
+                  u.name.toLowerCase().includes(userSearchText.toLowerCase()) || 
+                  u.email.toLowerCase().includes(userSearchText.toLowerCase())
+                ).length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-10 text-center text-slate-400 italic font-medium">
+                      No se encontraron usuarios coincidentes.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       <section className="space-y-6">
         <h2 className="text-xl font-black text-slate-800 uppercase italic flex items-center gap-2">
@@ -111,12 +252,22 @@ export const AdminModule = () => {
                     </div>
                   </td>
                   <td className="px-8 py-6 text-right">
-                    <button 
-                      onClick={() => approveRoles(u.id)}
-                      className="bg-green-600 text-white text-[10px] font-black uppercase tracking-widest px-6 py-3 rounded-xl hover:bg-green-700 transition-all shadow-lg shadow-green-100"
-                    >
-                      Aprobar Solicitud
-                    </button>
+                    <div className="flex justify-end gap-2">
+                      <button 
+                        onClick={() => approveRoles(u.id)}
+                        className="bg-green-600 text-white px-4 py-2.5 rounded-xl hover:bg-green-700 transition-all font-black text-xs flex items-center gap-1.5 uppercase shadow-sm"
+                        title="Aprobar Solicitud"
+                      >
+                        ✔ Aprobar
+                      </button>
+                      <button 
+                        onClick={() => denyRoles(u.id)}
+                        className="bg-red-650 text-white px-4 py-2.5 rounded-xl hover:bg-red-700 transition-all font-black text-xs flex items-center gap-1.5 uppercase shadow-sm"
+                        title="Denegar Solicitud"
+                      >
+                        ✖ Denegar
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

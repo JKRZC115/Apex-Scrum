@@ -20,6 +20,9 @@ export const useMatchEngine = (initialMatch: Match) => {
   const [events, setEvents] = useState<MatchEvent[]>([]);
   const [isRunning, setIsRunning] = useState(false);
 
+  const homeTeamId = match.homeTeamId;
+  const awayTeamId = match.awayTeamId;
+
   // Lógica de cronómetro con segundos
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -48,7 +51,7 @@ export const useMatchEngine = (initialMatch: Match) => {
   /**
    * Registra un evento de puntuación o tarjeta.
    */
-  const addEvent = useCallback((type: MatchEventType, teamId: 'HOME' | 'AWAY', playerId?: string, playerOutId?: string) => {
+  const addEvent = useCallback((type: MatchEventType, teamId: 'HOME' | 'AWAY', playerId?: string, playerOutId?: string, yellowCardEventId?: string) => {
     const pointsMap: Record<string, number> = {
       [MatchEventType.TRY]: 5,
       [MatchEventType.CONVERSION]: 2,
@@ -61,16 +64,18 @@ export const useMatchEngine = (initialMatch: Match) => {
 
     const points = pointsMap[type] || 0;
     const isHome = teamId === 'HOME';
+    const eventId = Math.random().toString(36).substr(2, 9);
 
     const newEvent: MatchEvent = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: eventId,
       matchId: match.id,
       type,
       minute: match.currentMinute,
-      teamId: isHome ? match.homeTeamId : match.awayTeamId,
+      teamId: isHome ? homeTeamId : awayTeamId,
       playerId,
       playerOutId,
-      points
+      points,
+      yellowCardEventId
     };
 
     setEvents(prev => [...prev, newEvent]);
@@ -81,7 +86,9 @@ export const useMatchEngine = (initialMatch: Match) => {
       homeScore: isHome ? prev.homeScore + points : prev.homeScore,
       awayScore: !isHome ? prev.awayScore + points : prev.awayScore
     }));
-  }, [match]);
+
+    return eventId;
+  }, [match.id, match.currentMinute, homeTeamId, awayTeamId]);
 
   /**
    * Calcula el tiempo de suspensión por tarjeta amarilla según la modalidad.
@@ -132,20 +139,21 @@ export const useMatchEngine = (initialMatch: Match) => {
    * Elimina un evento y revierte su impacto en el marcador.
    */
   const removeEvent = useCallback((eventId: string) => {
-    setEvents(prev => {
-      const eventToRemove = prev.find(e => e.id === eventId);
-      if (!eventToRemove) return prev;
+    const eventToRemove = events.find(e => e.id === eventId);
+    if (!eventToRemove) return;
 
-      const isHome = eventToRemove.teamId === match.homeTeamId;
-      setMatch(matchPrev => ({
-        ...matchPrev,
-        homeScore: isHome ? Math.max(0, matchPrev.homeScore - (eventToRemove.points || 0)) : matchPrev.homeScore,
-        awayScore: !isHome ? Math.max(0, matchPrev.awayScore - (eventToRemove.points || 0)) : matchPrev.awayScore
-      }));
+    const isHome = eventToRemove.teamId === homeTeamId;
+    const points = eventToRemove.points || 0;
 
-      return prev.filter(e => e.id !== eventId);
-    });
-  }, [match]);
+    setMatch(matchPrev => ({
+      ...matchPrev,
+      homeScore: isHome ? Math.max(0, matchPrev.homeScore - points) : matchPrev.homeScore,
+      awayScore: !isHome ? Math.max(0, matchPrev.awayScore - points) : matchPrev.awayScore
+    }));
+
+    // Si se remueve una segunda amarilla, remover automáticamente la tarjeta roja asociada
+    setEvents(prev => prev.filter(e => e.id !== eventId && !(e.type === MatchEventType.RED_CARD && e.yellowCardEventId === eventId)));
+  }, [events, homeTeamId, awayTeamId]);
 
   return {
     match,

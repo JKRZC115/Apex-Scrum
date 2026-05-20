@@ -12,7 +12,8 @@ export const MOCK_USERS: Record<string, any> = {
     name: 'Admin Supremo',
     roles: [UserRole.ADMIN],
     isApproved: true,
-    password: 'admin123'
+    password: 'admin123',
+    pin: '1234'
   },
   'referee@apex.com': {
     id: 'u2',
@@ -20,7 +21,8 @@ export const MOCK_USERS: Record<string, any> = {
     name: 'Juan Referí',
     roles: [UserRole.REFEREE],
     isApproved: true,
-    password: 'referee123'
+    password: 'referee123',
+    pin: '1234'
   },
   'manager@apex.com': {
     id: 'u5',
@@ -29,7 +31,8 @@ export const MOCK_USERS: Record<string, any> = {
     roles: [UserRole.REFEREE],
     isApproved: true,
     isRefereeManager: true,
-    password: 'manager123'
+    password: 'manager123',
+    pin: '1234'
   },
   'coach@club-a.com': {
     id: 'u3',
@@ -38,7 +41,8 @@ export const MOCK_USERS: Record<string, any> = {
     roles: [UserRole.COACH],
     isApproved: true,
     clubId: 'c1',
-    password: 'coach123'
+    password: 'coach123',
+    pin: '1234'
   },
   'medical@apex.com': {
     id: 'u4',
@@ -46,7 +50,8 @@ export const MOCK_USERS: Record<string, any> = {
     name: 'Dr. Rugby',
     roles: [UserRole.MEDICAL],
     isApproved: true,
-    password: 'medical123'
+    password: 'medical123',
+    pin: '1234'
   }
 };
 
@@ -175,3 +180,24 @@ export const MOCK_STANDINGS: any[] = [
     totalPoints: 8
   }
 ];
+
+/**
+ * Retorna los minutos y segundos reales calculados para un partido en curso,
+ * incluso si el componente de mesa no está montado (calculando según wall-clock).
+ */
+export function getLiveMatchTime(match: Match): { currentMinute: number; currentSecond: number } {
+  if (match.timerIsRunning && match.timerStartedAt) {
+    const elapsedMs = Date.now() - match.timerStartedAt;
+    const elapsedSecs = Math.floor(elapsedMs / 1000);
+    const totalSecs = (match.currentSecond ?? 0) + elapsedSecs;
+    const addedMins = Math.floor(totalSecs / 60);
+    const finalSec = totalSecs % 60;
+    const finalMin = (match.currentMinute ?? 0) + addedMins;
+    return { currentMinute: finalMin, currentSecond: finalSec };
+  }
+  return { 
+    currentMinute: match.currentMinute ?? 0, 
+    currentSecond: match.currentSecond ?? 0 
+  };
+}
+

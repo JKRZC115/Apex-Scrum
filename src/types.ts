@@ -59,6 +59,8 @@ export interface User {
   clubId?: string;     // Obligatorio para COACH y MEDICAL
   pendingRoles?: UserRole[]; // Roles solicitados pendientes de aprobación
   isRefereeManager?: boolean; // Habilitado por el admin para designaciones
+  password?: string;          // Contraseña del usuario
+  pin?: string;               // PIN de 4 dígitos para firmas de actas (referee y coach)
 }
 
 /**
@@ -152,6 +154,8 @@ export interface Match {
   isDisputeActive?: boolean;   // Si se activó la disputa
   finishTime?: Date;           // Hora de finalización del partido por la mesa (para calcular los 15 minutos)
   isSigned?: boolean;          // Firma definitiva por el árbitro central
+  timerIsRunning?: boolean;    // Indica si el cronómetro está corriendo en tiempo real
+  timerStartedAt?: number;     // Timestamp en milisegundos cuando inició el cronómetro
 }
 
 /**
@@ -166,6 +170,7 @@ export interface MatchEvent {
   playerId?: string;    // Jugador que anota o entra
   playerOutId?: string; // Jugador que sale (solo para SUBSTITUTION)
   points: number;       // 5, 2, 3, 3, 7 respectivamente
+  yellowCardEventId?: string; // Soportar ligar tarjeta roja con la segunda amarilla
 }
 
 /**

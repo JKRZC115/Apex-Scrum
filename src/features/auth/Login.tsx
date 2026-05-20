@@ -9,7 +9,7 @@ import { UserRole } from '../../types';
 import { Navigate } from 'react-router-dom';
 
 export const Login = () => {
-  const { user, loginWithGoogle, loginWithEmail, requestRoles, activeRole, setActiveRole } = useAuth();
+  const { user, loginWithGoogle, loginWithEmail, logout, requestRoles, activeRole, setActiveRole } = useAuth();
   const [selectedRoles, setSelectedRoles] = useState<UserRole[]>([]);
   const [clubId, setClubId] = useState('');
   const [email, setEmail] = useState('');
@@ -23,6 +23,31 @@ export const Login = () => {
   };
 
   if (user) {
+    if (!user.isApproved && !user.roles.includes(UserRole.ADMIN) && !user.pendingRoles) {
+      return (
+        <div className="flex items-center justify-center min-h-[80vh] px-4">
+          <div className="bg-white p-12 rounded-[48px] shadow-2xl border border-red-100 w-full max-w-lg text-center space-y-6 animate-in fade-in zoom-in duration-200">
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-3xl">🚫</span>
+            </div>
+            <h2 className="text-2xl font-black text-red-600 uppercase italic tracking-tight">Acceso Revocado</h2>
+            <p className="text-slate-500 font-semibold uppercase text-xs leading-relaxed">
+              Tu acceso a la plataforma Apex Scrum ha sido inhabilitado por el administrador del sistema.
+            </p>
+            <p className="text-slate-400 text-[10px] font-bold uppercase leading-relaxed">
+              Si crees que esto es un error o necesitas restaurar tu cuenta, por favor ponte en contacto con el administrador del torneo.
+            </p>
+            <button 
+              onClick={() => logout()}
+              className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl hover:bg-black transition-all text-xs uppercase cursor-pointer"
+            >
+              Salir de la Cuenta
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     const approvedRoles = user.roles.filter(r => r !== UserRole.PUBLIC);
 
     // Si no tiene roles aprobados (solo public) y no hay solicitud pendiente, mostrar registro
@@ -200,7 +225,7 @@ export const Login = () => {
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:border-blue-600 transition-all"
+              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:border-blue-600 transition-all text-slate-900"
               placeholder="admin@apex.com"
               required
             />
@@ -211,7 +236,7 @@ export const Login = () => {
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:border-blue-600 transition-all"
+              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:border-blue-600 transition-all text-slate-900"
               placeholder="••••••••"
               required
             />

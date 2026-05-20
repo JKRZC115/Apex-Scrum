@@ -17,6 +17,8 @@ interface AuthContextType {
   loginWithEmail: (email: string, pass: string) => Promise<boolean>;
   logout: () => Promise<void>;
   requestRoles: (roles: UserRole[], clubId?: string) => Promise<void>;
+  updateUser: (updatedData: Partial<User & { password?: string, pin?: string }>) => Promise<void>;
+  registerWithEmail: (userData: User & { password?: string, pin?: string }) => Promise<void>;
   activeRole: UserRole | null;
   setActiveRole: (role: UserRole | null) => void;
 }
@@ -86,12 +88,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const loginWithEmail = async (email: string, pass: string) => {
     const found = MOCK_USERS[email];
     if (found && found.password === pass) {
-      const { password, ...userData } = found;
-      setUser(userData as User);
-      localStorage.setItem('apex_mock_user', JSON.stringify(userData));
-      if (userData.roles && userData.roles.length === 1) {
-        setActiveRole(userData.roles[0]);
-        localStorage.setItem('apex_mock_role', userData.roles[0]);
+      setUser(found as User);
+      localStorage.setItem('apex_mock_user', JSON.stringify(found));
+      if (found.roles && found.roles.length === 1) {
+        setActiveRole(found.roles[0]);
+        localStorage.setItem('apex_mock_role', found.roles[0]);
       } else {
         setActiveRole(null);
         localStorage.removeItem('apex_mock_role');
@@ -136,8 +137,48 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(updatedUser);
   };
 
+  const updateUser = async (updatedData: Partial<User & { password?: string, pin?: string }>) => {
+    if (!user) return;
+    const emailKey = user.email;
+    const oldDetails = MOCK_USERS[emailKey] || {};
+    const mergedObj = {
+      ...user,
+      ...oldDetails,
+      ...updatedData
+    };
+    // Update global list dynamically
+    MOCK_USERS[emailKey] = mergedObj;
+    // Update state and persistence
+    setUser(mergedObj as User);
+    localStorage.setItem('apex_mock_user', JSON.stringify(mergedObj));
+  };
+
+  const registerWithEmail = async (newUserData: User & { password?: string, pin?: string }) => {
+    MOCK_USERS[newUserData.email] = newUserData;
+    setUser(newUserData);
+    localStorage.setItem('apex_mock_user', JSON.stringify(newUserData));
+    if (newUserData.roles && newUserData.roles.length === 1) {
+      setActiveRole(newUserData.roles[0]);
+      localStorage.setItem('apex_mock_role', newUserData.roles[0]);
+    } else {
+      setActiveRole(null);
+      localStorage.removeItem('apex_mock_role');
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, loginWithGoogle, loginWithEmail, logout, requestRoles, activeRole, setActiveRole: handleSetActiveRole }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      loading, 
+      loginWithGoogle, 
+      loginWithEmail, 
+      logout, 
+      requestRoles, 
+      updateUser, 
+      registerWithEmail, 
+      activeRole, 
+      setActiveRole: handleSetActiveRole 
+    }}>
       {children}
     </AuthContext.Provider>
   );
