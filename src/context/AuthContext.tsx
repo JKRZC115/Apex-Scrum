@@ -17,34 +17,55 @@ interface AuthContextType {
   loginWithEmail: (email: string, pass: string) => Promise<boolean>;
   logout: () => Promise<void>;
   requestRoles: (roles: UserRole[], clubId?: string) => Promise<void>;
+  activeRole: UserRole | null;
+  setActiveRole: (role: UserRole | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [activeRole, setActiveRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const mockUserStr = localStorage.getItem('apex_mock_user');
+    const mockRoleStr = localStorage.getItem('apex_mock_role');
+    if (mockUserStr) {
+      setUser(JSON.parse(mockUserStr));
+      if (mockRoleStr) {
+        setActiveRole(mockRoleStr as UserRole);
+      }
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         const userRef = doc(db, 'users', firebaseUser.uid);
         const userSnap = await getDoc(userRef);
 
         if (userSnap.exists()) {
-          setUser(userSnap.data() as User);
+          const uData = userSnap.data() as User;
+          setUser(uData);
+          if (uData.roles.length === 1) {
+            setActiveRole(uData.roles[0]);
+          }
         } else {
           // Usuario nuevo, aún no tiene perfil en DB
-          setUser({
+          const uData: User = {
             id: firebaseUser.uid,
             email: firebaseUser.email || '',
             name: firebaseUser.displayName || '',
             roles: [UserRole.PUBLIC],
             isApproved: true,
-          });
+          };
+          setUser(uData);
+          setActiveRole(UserRole.PUBLIC);
         }
       } else {
         setUser(null);
+        setActiveRole(null);
       }
       setLoading(false);
     });
@@ -54,6 +75,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const loginWithGoogle = async () => {
     try {
+      localStorage.removeItem('apex_mock_user');
+      localStorage.removeItem('apex_mock_role');
       await signInWithGoogle();
     } catch (error) {
       console.error('Login failed', error);
@@ -65,6 +88,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (found && found.password === pass) {
       const { password, ...userData } = found;
       setUser(userData as User);
+      localStorage.setItem('apex_mock_user', JSON.stringify(userData));
+      if (userData.roles && userData.roles.length === 1) {
+        setActiveRole(userData.roles[0]);
+        localStorage.setItem('apex_mock_role', userData.roles[0]);
+      } else {
+        setActiveRole(null);
+        localStorage.removeItem('apex_mock_role');
+      }
       return true;
     }
     return false;
@@ -72,6 +103,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     await signOut(auth);
+    setUser(null);
+    setActiveRole(null);
+    localStorage.removeItem('apex_mock_user');
+    localStorage.removeItem('apex_mock_role');
+  };
+
+  const handleSetActiveRole = (role: UserRole | null) => {
+    setActiveRole(role);
+    if (role) {
+      localStorage.setItem('apex_mock_role', role);
+    } else {
+      localStorage.removeItem('apex_mock_role');
+    }
   };
 
   const requestRoles = async (roles: UserRole[], clubId?: string) => {
@@ -93,7 +137,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginWithGoogle, loginWithEmail, logout, requestRoles }}>
+    <AuthContext.Provider value={{ user, loading, loginWithGoogle, loginWithEmail, logout, requestRoles, activeRole, setActiveRole: handleSetActiveRole }}>
       {children}
     </AuthContext.Provider>
   );

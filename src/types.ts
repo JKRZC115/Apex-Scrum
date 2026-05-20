@@ -58,6 +58,7 @@ export interface User {
   isApproved: boolean; // Controlado por el Admin
   clubId?: string;     // Obligatorio para COACH y MEDICAL
   pendingRoles?: UserRole[]; // Roles solicitados pendientes de aprobación
+  isRefereeManager?: boolean; // Habilitado por el admin para designaciones
 }
 
 /**
@@ -135,11 +136,22 @@ export interface Match {
   awayRosterIds: string[];
   refereeCenterId?: string; // Árbitro central asignado
   refereeTableId?: string;  // Árbitro de mesa (operador)
+  refereeA1Id?: string;     // Árbitro asistente 1
+  refereeA2Id?: string;     // Árbitro asistente 2
+  currentSecond?: number;   // Cronómetro - segundos (0-59)
+  currentHalf?: number;     // 1er Tiempo (1), 2do Tiempo (2), Tiempo Extra (3)
+  currentPeriod?: "No Iniciado" | "1er Tiempo" | "Entretiempo" | "2do Tiempo" | "Tiempo Extra" | "Finalizado";
   isHomeRosterUnlocked?: boolean; // Permite al entrenador local editar después del límite
   isAwayRosterUnlocked?: boolean; // Permite al entrenador visitante editar después del límite
   venue?: string;
   halfDuration: number; // Duración de cada tiempo en minutos (ej: 40 para XV's estándar)
   yellowCardDuration: number; // Duración de la tarjeta amarilla en minutos (ej: 10 o 2)
+  homeAcceptedScore?: boolean; // Aceptación del coach local
+  awayAcceptedScore?: boolean; // Aceptación del coach de la visita
+  declinedByCoachId?: string;  // Coach que rechazó (si aplica)
+  isDisputeActive?: boolean;   // Si se activó la disputa
+  finishTime?: Date;           // Hora de finalización del partido por la mesa (para calcular los 15 minutos)
+  isSigned?: boolean;          // Firma definitiva por el árbitro central
 }
 
 /**

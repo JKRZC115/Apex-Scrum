@@ -33,6 +33,22 @@ export const AdminModule = () => {
     }));
   };
 
+  const toggleRefereeManager = (userId: string) => {
+    setUsersBoard(prev => prev.map(u => {
+      if (u.id === userId) {
+        const nextVal = !u.isRefereeManager;
+        if (MOCK_USERS[u.email]) {
+          MOCK_USERS[u.email].isRefereeManager = nextVal;
+        }
+        return {
+          ...u,
+          isRefereeManager: nextVal
+        };
+      }
+      return u;
+    }));
+  };
+
   const handleSuspension = (playerId: string, matches: number) => {
     setPlayers(prev => prev.map(p => 
       p.id === playerId ? { ...p, isSuspended: matches > 0, suspendedMatchesLeft: matches } : p
@@ -118,6 +134,51 @@ export const AdminModule = () => {
 
       <section className="space-y-6">
         <h2 className="text-xl font-black text-slate-800 uppercase italic flex items-center gap-2">
+          <span className="w-2 h-6 bg-purple-600 rounded-full"></span>
+          Gestión de Personal Arbitral (Referee Manager)
+        </h2>
+        
+        <div className="bg-white rounded-[40px] border border-slate-200 shadow-sm overflow-hidden p-8 space-y-4">
+          <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">
+            Define cuáles de tus árbitros aprobados actúan como "Referee Manager" para designar colegiados a los encuentros.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-100 uppercase text-[9px] font-black tracking-widest text-slate-400">
+                  <th className="pb-4">Nombre</th>
+                  <th className="pb-4">Email</th>
+                  <th className="pb-4 text-center">Referee Manager</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {usersBoard.filter(u => u.roles && u.roles.includes(UserRole.REFEREE)).map(u => (
+                  <tr key={u.id} className="text-xs">
+                    <td className="py-4 font-black text-slate-900 uppercase">{u.firstName} {u.lastName}</td>
+                    <td className="py-4 text-slate-500 font-mono">{u.email}</td>
+                    <td className="py-4 text-center">
+                      <button 
+                        onClick={() => toggleRefereeManager(u.id)}
+                        className={`text-[10px] font-black uppercase px-4 py-2 rounded-xl transition-all ${u.isRefereeManager ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                      >
+                        {u.isRefereeManager ? "✓ Manager Activo" : "Hacer Manager"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {usersBoard.filter(u => u.roles && u.roles.includes(UserRole.REFEREE)).length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="py-6 text-center text-slate-400 italic">No hay árbitros registrados en el sistema.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-6">
+        <h2 className="text-xl font-black text-slate-800 uppercase italic flex items-center gap-2">
           <span className="w-2 h-6 bg-red-600 rounded-full"></span>
           Control de Disciplina (Sanciones)
         </h2>
@@ -174,58 +235,69 @@ export const AdminModule = () => {
           </table>
         </div>
       </section>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 gap-8">
         <div className="bg-slate-900 p-10 rounded-[48px] text-white shadow-2xl">
-           <h3 className="text-xl font-black italic uppercase mb-6">Modificaciones de Emergencia</h3>
-           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <button 
-                onClick={() => alert('Acta desbloqueada permanentemente.')}
-                className="bg-slate-800 p-4 rounded-3xl border border-slate-700 text-left hover:border-blue-500 transition-all group active:scale-95"
-              >
-                <p className="text-[10px] font-black text-slate-500 uppercase mb-1">Mesa</p>
-                <p className="text-xs font-black group-hover:text-blue-400">Desbloquear Acta</p>
-              </button>
-              <button 
-                onClick={() => alert('Modo edición de score habilitado.')}
-                className="bg-slate-800 p-4 rounded-3xl border border-slate-700 text-left hover:border-blue-500 transition-all group active:scale-95"
-              >
-                <p className="text-[10px] font-black text-slate-500 uppercase mb-1">Puntos</p>
-                <p className="text-xs font-black group-hover:text-blue-400">Modificar Score</p>
-              </button>
-              <button 
-                onClick={() => alert('Jugadores habilitados médicamente.')}
-                className="bg-slate-800 p-4 rounded-3xl border border-slate-700 text-left hover:border-blue-500 transition-all group active:scale-95"
-              >
-                <p className="text-[10px] font-black text-slate-500 uppercase mb-1">Médico</p>
-                <p className="text-xs font-black group-hover:text-blue-400">Dar Alta Medica</p>
-              </button>
-              <button 
-                onClick={() => confirm('¿Suspender partido definitivamente?') && alert('Partido suspendido.')}
-                className="bg-slate-800 p-4 rounded-3xl border border-slate-700 text-left hover:border-red-500 transition-all group active:scale-95"
-              >
-                <p className="text-[10px] font-black text-slate-500 uppercase mb-1">Match</p>
-                <p className="text-xs font-black group-hover:text-red-400">Suspender Partido</p>
-              </button>
-           </div>
-        </div>
+           <h3 className="text-xl font-black italic uppercase mb-6 flex items-center gap-3">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+              Modificaciones de Emergencia y Control Supremo de Marcadores
+           </h3>
+           <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-6">
+              Como administrador supremo, eres el único facultado para modificar o sobreescribir marcadores cerrados con firma digital.
+           </p>
+           
+           <div className="space-y-4">
+              {MOCK_MATCHES.map((match) => {
+                 const homeClub = MOCK_CLUBS[match.homeTeamId];
+                 const awayClub = MOCK_CLUBS[match.awayTeamId];
+                 return (
+                    <div key={match.id} className="bg-slate-850 p-6 rounded-3xl border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-slate-750 transition-colors">
+                       <div>
+                          <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                             Cod: {match.id} • {match.isSigned ? "FIRMADO Y BLOQUEADO 📜🔒" : "ABIERTO / EN PROCESO"}
+                          </span>
+                          <h4 className="font-sans text-xs font-black uppercase text-slate-200 mt-1">
+                             {homeClub?.name} vs {awayClub?.name}
+                          </h4>
+                       </div>
 
-        <div className="bg-white p-10 rounded-[48px] border border-slate-200 shadow-sm flex flex-col justify-center items-center text-center space-y-4">
-           <div className="w-16 h-16 bg-blue-100 rounded-[24px] flex items-center justify-center text-blue-600">
-             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-             </svg>
+                       <div className="flex items-center gap-4 flex-wrap">
+                          <div className="flex items-center gap-2">
+                             <input 
+                                type="number"
+                                defaultValue={match.homeScore}
+                                id={`sup-home-${match.id}`}
+                                className="w-16 bg-slate-800 border border-slate-700 rounded-xl py-2 px-3 text-center text-sm font-black text-white outline-none focus:border-red-500"
+                             />
+                             <span className="text-slate-500 text-xs font-black">:</span>
+                             <input 
+                                type="number"
+                                defaultValue={match.awayScore}
+                                id={`sup-away-${match.id}`}
+                                className="w-16 bg-slate-800 border border-slate-700 rounded-xl py-2 px-3 text-center text-sm font-black text-white outline-none focus:border-red-500"
+                             />
+                          </div>
+
+                          <button 
+                             onClick={() => {
+                                const homeVal = parseInt((document.getElementById(`sup-home-${match.id}`) as HTMLInputElement)?.value || '0');
+                                const awayVal = parseInt((document.getElementById(`sup-away-${match.id}`) as HTMLInputElement)?.value || '0');
+                                
+                                const idx = MOCK_MATCHES.findIndex(m => m.id === match.id);
+                                if (idx !== -1) {
+                                   MOCK_MATCHES[idx].homeScore = homeVal;
+                                   MOCK_MATCHES[idx].awayScore = awayVal;
+                                   alert(`¡Éxito! Marcador Supremo Modificado: ${homeClub?.name} (${homeVal}) - ${awayClub?.name} (${awayVal})`);
+                                }
+                             }}
+                             className="bg-red-650 hover:bg-red-700 text-white font-black text-[10px] uppercase tracking-widest px-5 py-3.5 rounded-xl transition-all"
+                          >
+                             Sobreescribir Score ⚡
+                          </button>
+                       </div>
+                    </div>
+                 );
+              })}
            </div>
-           <div>
-             <h3 className="text-xl font-black italic uppercase">Nuevo Torneo</h3>
-             <p className="text-slate-400 text-xs font-medium">Configura una nueva competencia desde cero.</p>
-           </div>
-            <Link 
-              to="/admin/setup"
-              className="bg-blue-600 text-white font-black px-10 py-4 rounded-2xl text-xs hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 uppercase tracking-widest active:scale-95"
-            >
-              Configurar Ahora
-            </Link>
         </div>
       </div>
     </div>

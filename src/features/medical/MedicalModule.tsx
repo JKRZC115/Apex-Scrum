@@ -135,16 +135,16 @@ export const MedicalModule = () => {
               />
             </div>
 
-            <div className="p-6 bg-red-50 rounded-3xl border border-red-100 flex items-center justify-between">
+            <div style={{ backgroundColor: '#958bff' }} className="p-6 rounded-3xl border border-slate-200 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+                <div style={{ backgroundColor: '#000ce7' }} className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg">
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor font-black">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636" />
                   </svg>
                 </div>
                 <div>
-                   <p className="text-xs font-black text-red-900 uppercase">Inhabilitación Inmediata</p>
-                   <p className="text-[10px] text-red-600 font-bold">Bloquea al jugador de la planilla actual y futura.</p>
+                   <p style={{ color: '#000000' }} className="text-xs font-black uppercase">Inhabilitación Inmediata</p>
+                   <p style={{ color: '#000000' }} className="text-[10px] font-bold">Bloquea al jugador de la planilla actual y futura.</p>
                 </div>
               </div>
               <input 

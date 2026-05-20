@@ -10,7 +10,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { UserRole } from '../../../types';
 
 export const Navbar = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, activeRole, setActiveRole } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -18,7 +18,12 @@ export const Navbar = () => {
     navigate('/');
   };
 
-  const hasRole = (role: UserRole) => user?.roles?.includes(role) || user?.roles?.includes(UserRole.ADMIN);
+  const handleSwitchProfile = () => {
+    setActiveRole(null);
+    navigate('/login');
+  };
+
+  const hasApprovedMultiple = user && user.roles.filter(r => r !== UserRole.PUBLIC).length > 1;
 
   return (
     <nav className="bg-[#065e20] text-white p-4 shadow-lg sticky top-0 z-50">
@@ -35,16 +40,25 @@ export const Navbar = () => {
           </div>
           <div className="flex flex-col">
             <span className="font-black text-xl italic uppercase tracking-tighter leading-none">Apex Scrum</span>
-            <span className="text-[8px] font-black uppercase tracking-[0.3em] text-green-300 opacity-60">Federación</span>
+            <span className="text-[8px] font-black uppercase tracking-[0.15em] text-green-300 opacity-60">Liga Risaraldense de Rugby</span>
           </div>
         </Link>
         
-        <div className="hidden md:flex gap-8 text-[10px] font-black uppercase tracking-widest italic">
+        <div className="hidden md:flex gap-8 text-[10px] font-black uppercase tracking-widest italic items-center">
           <Link to="/" className="hover:text-green-300 transition-colors">Cartelera</Link>
-          {hasRole(UserRole.ADMIN) && <Link to="/admin" className="hover:text-green-300 transition-colors">Admin</Link>}
-          {hasRole(UserRole.REFEREE) && <Link to="/referee" className="hover:text-green-300 transition-colors">Referí</Link>}
-          {hasRole(UserRole.COACH) && <Link to="/coach" className="hover:text-green-300 transition-colors">Entrenador</Link>}
-          {hasRole(UserRole.MEDICAL) && <Link to="/medical" className="hover:text-green-300 transition-colors">Médico</Link>}
+          {activeRole === UserRole.ADMIN && <Link to="/admin" className="hover:text-green-300 transition-colors">Admin</Link>}
+          {activeRole === UserRole.REFEREE && <Link to="/referee" className="hover:text-green-300 transition-colors">Referí</Link>}
+          {activeRole === UserRole.COACH && <Link to="/coach" className="hover:text-green-300 transition-colors">Entrenador</Link>}
+          {activeRole === UserRole.MEDICAL && <Link to="/medical" className="hover:text-green-300 transition-colors">Médico</Link>}
+          
+          {hasApprovedMultiple && (
+            <button 
+              onClick={handleSwitchProfile}
+              className="bg-[#043d14] px-3.5 py-1.5 rounded-lg border border-green-500 hover:bg-[#065e20] text-[9px] hover:text-green-300 transition-colors"
+            >
+              Cambiar Perfil
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-4">
@@ -52,10 +66,12 @@ export const Navbar = () => {
             <div className="flex items-center gap-4">
               <div className="text-right hidden sm:block">
                 <p className="text-[10px] font-black text-white italic uppercase tracking-tight">{user.name}</p>
-                <div className="flex gap-1 justify-end mt-0.5">
-                   {user.roles.map(r => (
-                     <span key={r} className="text-[6px] bg-green-900 border border-green-700 px-1 py-0.5 rounded-sm font-black text-green-400 uppercase">{r}</span>
-                   ))}
+                <div className="flex gap-1 justify-end mt-0.5 items-center">
+                   {activeRole && (
+                     <span className="text-[7px] bg-blue-900 border border-blue-600 px-1.5 py-0.5 rounded font-black text-blue-200 uppercase tracking-wider">
+                       Sesión: {activeRole}
+                     </span>
+                   )}
                 </div>
               </div>
               <button 

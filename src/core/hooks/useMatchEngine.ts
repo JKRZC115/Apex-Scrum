@@ -11,20 +11,36 @@ import { Match, MatchEvent, MatchEventType, MatchModality, MatchStatus } from '.
  * Proporciona el estado del marcador, tiempos y validaciones de rugby.
  */
 export const useMatchEngine = (initialMatch: Match) => {
-  const [match, setMatch] = useState<Match>(initialMatch);
+  const [match, setMatch] = useState<Match>({
+    ...initialMatch,
+    currentSecond: initialMatch.currentSecond ?? 0,
+    currentHalf: initialMatch.currentHalf ?? (initialMatch.status === MatchStatus.LIVE ? 1 : 0),
+    currentPeriod: initialMatch.currentPeriod ?? (initialMatch.status === MatchStatus.LIVE ? "1er Tiempo" : "No Iniciado")
+  });
   const [events, setEvents] = useState<MatchEvent[]>([]);
   const [isRunning, setIsRunning] = useState(false);
 
-  // Lógica de cronómetro
+  // Lógica de cronómetro con segundos
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isRunning && match.status === MatchStatus.LIVE) {
       interval = setInterval(() => {
-        setMatch(prev => ({
-          ...prev,
-          currentMinute: prev.currentMinute + 1
-        }));
-      }, 60000); // 1 minuto real = 1 minuto de juego (para pruebas podemos acelerarlo)
+        setMatch(prev => {
+          const sec = (prev.currentSecond ?? 0) + 1;
+          if (sec >= 60) {
+            return {
+              ...prev,
+              currentSecond: 0,
+              currentMinute: (prev.currentMinute ?? 0) + 1
+            };
+          } else {
+            return {
+              ...prev,
+              currentSecond: sec
+            };
+          }
+        });
+      }, 1000);
     }
     return () => clearInterval(interval);
   }, [isRunning, match.status]);
@@ -123,8 +139,8 @@ export const useMatchEngine = (initialMatch: Match) => {
       const isHome = eventToRemove.teamId === match.homeTeamId;
       setMatch(matchPrev => ({
         ...matchPrev,
-        homeScore: isHome ? matchPrev.homeScore - eventToRemove.points : matchPrev.homeScore,
-        awayScore: !isHome ? matchPrev.awayScore - eventToRemove.points : matchPrev.awayScore
+        homeScore: isHome ? Math.max(0, matchPrev.homeScore - (eventToRemove.points || 0)) : matchPrev.homeScore,
+        awayScore: !isHome ? Math.max(0, matchPrev.awayScore - (eventToRemove.points || 0)) : matchPrev.awayScore
       }));
 
       return prev.filter(e => e.id !== eventId);
@@ -133,6 +149,7 @@ export const useMatchEngine = (initialMatch: Match) => {
 
   return {
     match,
+    setMatch,
     events,
     isRunning,
     setIsRunning,

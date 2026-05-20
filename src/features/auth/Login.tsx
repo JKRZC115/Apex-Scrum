@@ -9,7 +9,7 @@ import { UserRole } from '../../types';
 import { Navigate } from 'react-router-dom';
 
 export const Login = () => {
-  const { user, loginWithGoogle, loginWithEmail, requestRoles } = useAuth();
+  const { user, loginWithGoogle, loginWithEmail, requestRoles, activeRole, setActiveRole } = useAuth();
   const [selectedRoles, setSelectedRoles] = useState<UserRole[]>([]);
   const [clubId, setClubId] = useState('');
   const [email, setEmail] = useState('');
@@ -22,8 +22,86 @@ export const Login = () => {
     if (!success) setError('Credenciales de prueba inválidas');
   };
 
-  if (user && user.roles.length > 1) {
-    return <Navigate to="/" />;
+  if (user) {
+    const approvedRoles = user.roles.filter(r => r !== UserRole.PUBLIC);
+
+    // Si no tiene roles aprobados (solo public) y no hay solicitud pendiente, mostrar registro
+    if (approvedRoles.length === 0 && !user.pendingRoles) {
+      // Continuará al formulario de registro abajo
+    } else if (user.pendingRoles && approvedRoles.length === 0) {
+      // Mostrará pantalla de espera de aprobación
+    } else {
+      // Tiene roles aprobados
+      // Si ya seleccionó el activeRole o si es ADMIN (pasa directo si se quiere, o le damos opción de elegir si tiene más de 1):
+      if (activeRole) {
+        if (activeRole === UserRole.ADMIN) return <Navigate to="/admin" />;
+        if (activeRole === UserRole.REFEREE) return <Navigate to="/referee" />;
+        if (activeRole === UserRole.COACH) return <Navigate to="/coach" />;
+        if (activeRole === UserRole.MEDICAL) return <Navigate to="/medical" />;
+      }
+
+      // Si sólo tiene 1 rol aprobado (excluyendo PUBLIC), se auto-asigna
+      if (approvedRoles.length === 1 && !user.roles.includes(UserRole.ADMIN)) {
+        setActiveRole(approvedRoles[0]);
+      } else {
+        // Múltiples roles aprobados, permitimos elegir sólo UNO para la sesión
+        const rolesToChoose = user.roles.filter(r => r !== UserRole.PUBLIC);
+        return (
+          <div className="flex items-center justify-center min-h-[80vh] px-4">
+            <div className="bg-white p-12 rounded-[48px] shadow-2xl border border-slate-150 w-full max-w-xl text-center space-y-8 animate-in fade-in zoom-in duration-300">
+              <div className="space-y-2">
+                <span className="text-[10px] font-black text-[#06bb45] bg-green-50 border border-green-200 px-4 py-1.5 rounded-full uppercase tracking-widest inline-block">
+                  Selección de Perfil de Sesión
+                </span>
+                <h2 className="text-3xl font-black italic text-slate-900 uppercase tracking-tighter leading-none">¿Con qué perfil deseas ingresar hoy?</h2>
+                <p className="text-slate-400 text-xs font-bold leading-normal uppercase tracking-wider">
+                  Hola, {user.name}. Tu cuenta tiene múltiples perfiles autorizados en Apex Scrum. Elige uno para iniciar sesión:
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 text-left">
+                {rolesToChoose.map((role) => {
+                  let text = "";
+                  let desc = "";
+                  let themeClass = "";
+                  
+                  if (role === UserRole.ADMIN) {
+                    text = "Administrador Supremo";
+                    desc = "Ves todas las secciones, apruebas personal, configuras torneos y sobreescribes marcadores con autoría directa.";
+                    themeClass = "border-red-100 bg-red-50/50 hover:bg-red-50 hover:border-red-400 text-red-700";
+                  } else if (role === UserRole.COACH) {
+                    text = "Director Técnico / Entrenador";
+                    desc = "Inscribe jugadores en las planillas de tu club y realiza el descargo o validación final de marcadores.";
+                    themeClass = "border-blue-100 bg-blue-50/50 hover:bg-blue-50 hover:border-blue-400 text-blue-700";
+                  } else if (role === UserRole.REFEREE) {
+                    text = "Referí / Oficial de Arbitraje";
+                    desc = "Oficializa el control de mesa o firma el acta de juego digital como Árbitro Central.";
+                    themeClass = "border-purple-100 bg-purple-50/50 hover:bg-purple-50 hover:border-purple-400 text-purple-700";
+                  } else if (role === UserRole.MEDICAL) {
+                    text = "Médico u Odontólogo de Campo";
+                    desc = "Genera reportes médicos obligatorios, bloquea jugadores con riesgo de contusión cardiovascular o muscular.";
+                    themeClass = "border-emerald-100 bg-emerald-50/50 hover:bg-emerald-50 hover:border-emerald-400 text-emerald-700";
+                  }
+
+                  return (
+                    <button
+                      key={role}
+                      onClick={() => setActiveRole(role)}
+                      className={`p-6 rounded-3xl border-2 transition-all flex items-start gap-4 cursor-pointer text-left ${themeClass}`}
+                    >
+                      <div className="space-y-1">
+                        <h4 className="font-black text-slate-900 text-sm uppercase italic tracking-tight">{text}</h4>
+                        <p className="text-[10px] text-slate-500 leading-relaxed font-semibold">{desc}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      }
+    }
   }
 
   // Si el usuario está logueado pero solo es PUBLIC, mostramos selección de rol
